@@ -21,15 +21,19 @@ export default function TextParseModal({ players, onClose, onApply }: Props) {
 
   const KEYWORDS = ["ㅅ", "손"];
 
-  // 2글자 이상 연속 매칭 확인
-  const hasConsecutiveMatch = (dbNick: string, discordNick: string): boolean => {
+  // 연속 매칭 점수 계산 (2글자 이상 연속으로 겹치는 횟수)
+  const getMatchScore = (dbNick: string, discordNick: string): number => {
     const lower1 = dbNick.toLowerCase();
     const lower2 = discordNick.toLowerCase();
+    let score = 0;
     for (let i = 0; i <= lower1.length - 2; i++) {
       const sub = lower1.substring(i, i + 2);
-      if (lower2.includes(sub)) return true;
+      if (lower2.includes(sub)) score++;
     }
-    return false;
+    // 완전 포함이면 추가 점수
+    if (lower2.includes(lower1)) score += 10;
+    if (lower1.includes(lower2)) score += 10;
+    return score;
   };
 
   const handleParse = () => {
@@ -62,8 +66,12 @@ export default function TextParseModal({ players, onClose, onApply }: Props) {
 
       if (!isParticipant) continue;
 
-      // DB 매칭 (2글자 연속 매칭)
-      const matched = players.find((p) => hasConsecutiveMatch(p.nickname, discordNick));
+      // DB 매칭 (점수 가장 높은 걸 선택)
+      const candidates = players
+        .map((p) => ({ player: p, score: getMatchScore(p.nickname, discordNick) }))
+        .filter((c) => c.score > 0)
+        .sort((a, b) => b.score - a.score);
+      const matched = candidates.length > 0 ? candidates[0].player : null;
 
       // 중복 방지
       if (!parsed.some((r) => r.matchedPlayer?.id === matched?.id && matched)) {
