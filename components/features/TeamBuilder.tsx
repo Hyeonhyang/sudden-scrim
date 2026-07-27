@@ -32,6 +32,10 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
   const [dragOverPlayer, setDragOverPlayer] = useState<string | null>(null);
   const [teamOrders, setTeamOrders] = useState<Record<number, string[]>>({});
   const [snaSlotsByTeam, setSnaSlotsByTeam] = useState<Record<number, number>>({ 1: 2, 2: 2, 3: 2, 4: 2 });
+  // 각 팀의 스나 자리에 배치된 선수 ID
+  const [teamSnaPlayers, setTeamSnaPlayers] = useState<Record<number, (string | null)[]>>({
+    1: [null, null], 2: [null, null], 3: [null, null], 4: [null, null],
+  });
 
   const {
     participants,
@@ -117,10 +121,29 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
     }
     await assignTeam(playerId, teamNumber);
     if (teamNumber > 0) {
+      // teamOrders에 뒤에 추가 (라이플 영역)
+      setTeamOrders((prev) => {
+        const current = prev[teamNumber] || [];
+        if (!current.includes(playerId)) {
+          return { ...prev, [teamNumber]: [...current, playerId] };
+        }
+        return prev;
+      });
       setBalance1((prev) => cleanBalance(prev.map((id) => id === playerId ? null : id)));
       setBalance2((prev) => cleanBalance(prev.map((id) => id === playerId ? null : id)));
+    } else {
+      // 풀로 되돌릴 때 teamOrders에서 제거
+      for (let t = 1; t <= 4; t++) {
+        setTeamOrders((prev) => {
+          const current = prev[t];
+          if (current) {
+            return { ...prev, [t]: current.filter((id) => id !== playerId) };
+          }
+          return prev;
+        });
+      }
     }
-  }, [assignTeam, participants, toggleParticipant]);
+  }, [assignTeam, participants, toggleParticipant, balance1, balance2]);
 
   // 팀 수 변경 시 DB도 업데이트
   const handleTeamCountChange = async (count: number) => {
@@ -297,7 +320,8 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
                         e.dataTransfer.effectAllowed = "move";
                       }}
                       onDragOver={(e) => {
-                        const fromTier = e.dataTransfer.types.includes("text/plain") ? undefined : undefined;
+                        // 같은 티어 내에서만 드롭 허용 표시
+                        const fromTier = e.dataTransfer.types.length > 0 ? undefined : undefined;
                         e.preventDefault();
                         setDragOverPlayer(player.id);
                       }}
@@ -588,7 +612,18 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
         }}
         teamOrders={teamOrders}
         snaSlotsByTeam={snaSlotsByTeam}
-        onChangeSnaSlots={isAdmin ? (teamNum, count) => setSnaSlotsByTeam((prev) => ({ ...prev, [teamNum]: count })) : undefined}
+        teamSnaPlayers={teamSnaPlayers}
+        onChangeSnaSlots={isAdmin ? (teamNum, count) => {
+          setSnaSlotsByTeam((prev) => ({ ...prev, [teamNum]: count }));
+          setTeamSnaPlayers((prev) => {
+            const current = prev[teamNum] || [];
+            if (count > current.length) {
+              return { ...prev, [teamNum]: [...current, ...Array(count - current.length).fill(null)] };
+            } else {
+              return { ...prev, [teamNum]: current.slice(0, count) };
+            }
+          });
+        } : undefined}
         onSortByTier={isAdmin ? (teamNum) => {
           const snaCount = snaSlotsByTeam[teamNum] ?? 2;
           setTeamOrders((prev) => {
@@ -597,7 +632,6 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
               return info && info.teamNumber === teamNum;
             });
             const currentOrder = prev[teamNum] || teamPlayersAll.map((p) => p.id);
-            // 스나 자리는 유지, 나머지만 티어순 정렬
             const snaIds = currentOrder.slice(0, snaCount);
             const restIds = currentOrder.slice(snaCount);
             const restSorted = [...restIds].sort((a, b) => {
@@ -607,6 +641,53 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
             });
             return { ...prev, [teamNum]: [...snaIds, ...restSorted] };
           });
+        } : undefined}
+        onDropToSna={isAdmin ? (teamNum, slotIdx, playerId) => {
+          // 참가 안 됐으면 참가시키고 팀 배치
+          if (!participants.has(playerId)) {
+            toggleParticipant(playerId).then(() => assignTeam(playerId, teamNum));
+          } else {
+            const info = participants.get(playerId);
+            if (!info || info.teamNumber !== teamNum) {
+              assignTeam(playerId, teamNum);
+            }
+          }
+          // 스나 슬롯에 배치
+          setTeamSnaPlayers((prev) => {
+            const current = [...(prev[teamNum] || [null, null])];
+            // 이미 다른 스나 슬롯에 있으면 제거
+            const existingIdx = current.indexOf(playerId);
+            if (existingIdx !== -1) current[existingIdx] = null;
+            current[slotIdx] = playerId;
+            return { ...prev, [teamNum]: current };
+          });
+        } : undefined}
+        onDropToRifle={isAdmin ? async (teamNum, playerId) => {
+          // 참가 안 됐으면 참가시키고 팀 배치
+          if (!participants.has(playerId)) {
+            await toggleParticipant(playerId);
+          }
+          await assignTeam(playerId, teamNum);
+          // 스나에서 제거 (라이플로 이동)
+          setTeamSnaPlayers((prev) => {
+            const current = [...(prev[teamNum] || [null, null])];
+            const idx = current.indexOf(playerId);
+            if (idx !== -1) current[idx] = null;
+            return { ...prev, [teamNum]: current };
+          });
+        } : undefined}
+        onRemoveSna={isAdmin ? (teamNum, slotIdx) => {
+          const snaList = teamSnaPlayers[teamNum] || [];
+          const playerId = snaList[slotIdx];
+          // 스나에서 빼서 풀로
+          setTeamSnaPlayers((prev) => {
+            const current = [...(prev[teamNum] || [null, null])];
+            current[slotIdx] = null;
+            return { ...prev, [teamNum]: current };
+          });
+          if (playerId) {
+            assignTeamAndCleanBalance(playerId, 0);
+          }
         } : undefined}
       />
 
