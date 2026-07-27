@@ -56,7 +56,7 @@ export default function PlayerRegistration({ onClose, onRegistered }: Props) {
           >
             {TIERS.map((tier) => (
               <option key={tier.score} value={tier.score}>
-                {tier.label}
+                {tier.display}
               </option>
             ))}
           </select>

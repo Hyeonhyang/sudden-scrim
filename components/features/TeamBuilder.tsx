@@ -227,7 +227,19 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
       </header>
 
       {/* 선수 DB (티어별) */}
-      <section className="border border-gray-800 rounded-xl p-4 bg-gray-900/50">
+      <section
+        className="border border-gray-800 rounded-xl p-4 bg-gray-900/50"
+        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
+        onDrop={(e) => {
+          e.preventDefault();
+          const playerId = e.dataTransfer.getData("playerId");
+          if (playerId && isAdmin && participants.has(playerId)) {
+            toggleParticipant(playerId);
+            setBalance1((prev) => cleanBalance(prev.map((id) => id === playerId ? null : id)));
+            setBalance2((prev) => cleanBalance(prev.map((id) => id === playerId ? null : id)));
+          }
+        }}
+      >
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-bold text-gray-300">선수 DB</h2>
           <input
@@ -282,9 +294,15 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
                             const reordered = [...sameTier];
                             const [moved] = reordered.splice(fromIdx, 1);
                             reordered.splice(toIdx, 0, moved);
+                            // 즉시 로컬 업데이트
+                            setPlayers((prev) => {
+                              const others = prev.filter((p) => p.tier_score !== player.tier_score);
+                              const updated = reordered.map((p, i) => ({ ...p, sort_order: i + 1 }));
+                              return [...others, ...updated].sort((a, b) => b.tier_score - a.tier_score || a.sort_order - b.sort_order);
+                            });
+                            // 백그라운드 DB 저장
                             const updates = reordered.map((p, i) => ({ id: p.id, sort_order: i + 1 }));
-                            await reorderPlayers(updates);
-                            loadPlayers();
+                            reorderPlayers(updates);
                           }
                         }
                       }}

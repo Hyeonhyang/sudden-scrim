@@ -131,7 +131,7 @@ export default function TierEditModal({ players, onClose, onUpdated }: Props) {
               >
                 {TIERS.map((tier) => (
                   <option key={tier.score} value={tier.score}>
-                    {tier.label} {tier.score === selectedPlayer.tier_score ? "(현재)" : ""}
+                    {tier.display} {tier.score === selectedPlayer.tier_score ? "(현재)" : ""}
                   </option>
                 ))}
               </select>
