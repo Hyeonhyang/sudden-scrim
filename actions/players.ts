@@ -14,7 +14,8 @@ export async function getPlayers(): Promise<ActionResult<Player[]>> {
   const { data, error } = await supabase
     .from("players")
     .select("*")
-    .order("tier_score", { ascending: false });
+    .order("tier_score", { ascending: false })
+    .order("sort_order", { ascending: true });
 
   if (error) return { data: null, error: "선수 목록을 불러올 수 없습니다." };
   return { data: data as Player[], error: null };
@@ -92,5 +93,23 @@ export async function deletePlayer(playerId: string): Promise<ActionResult> {
   const { error } = await supabase.from("players").delete().eq("id", playerId);
 
   if (error) return { data: null, error: "선수 삭제에 실패했습니다." };
+  return { data: null, error: null };
+}
+
+export async function reorderPlayers(
+  updates: { id: string; sort_order: number }[]
+): Promise<ActionResult> {
+  if (!(await isAuthenticated())) {
+    return { data: null, error: "로그인이 필요합니다." };
+  }
+
+  const supabase = await createClient();
+  for (const { id, sort_order } of updates) {
+    const { error } = await supabase
+      .from("players")
+      .update({ sort_order })
+      .eq("id", id);
+    if (error) return { data: null, error: "순서 변경에 실패했습니다." };
+  }
   return { data: null, error: null };
 }

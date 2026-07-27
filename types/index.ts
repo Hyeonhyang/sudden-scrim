@@ -6,6 +6,7 @@ export type Player = {
   tier_score: number;
   tier_label: string;
   position: Position;
+  sort_order: number;
   created_at: string;
   updated_at: string;
 };

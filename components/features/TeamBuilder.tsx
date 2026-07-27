@@ -2,15 +2,17 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Player } from "@/types";
-import { getPlayers } from "@/actions/players";
+import { getPlayers, updatePlayerTier, reorderPlayers } from "@/actions/players";
 import { TIERS, POSITION_LABELS, Position } from "@/lib/tiers";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeSession } from "@/hooks/useRealtimeSession";
 import PlayerPool from "./PlayerPool";
 import TeamGrid from "./TeamGrid";
-import PlayerRegistration from "./PlayerRegistration";
+import MapPicker from "./MapPicker";
+import BalanceCompare from "./BalanceCompare";
 import TierEditModal from "./TierEditModal";
 import TextParseModal from "./TextParseModal";
+import PlayerRegistration from "./PlayerRegistration";
 
 type Props = {
   isAdmin: boolean;
@@ -25,8 +27,11 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
   const [showTierEdit, setShowTierEdit] = useState(false);
   const [search, setSearch] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [balance1, setBalance1] = useState<(string | null)[]>([]);
+  const [balance2, setBalance2] = useState<(string | null)[]>([]);
+  const [selectedDbPlayer, setSelectedDbPlayer] = useState<string | null>(null);
+  const [dragOverPlayer, setDragOverPlayer] = useState<string | null>(null);
 
-  // Realtime 훅
   const {
     participants,
     toggleParticipant,
@@ -45,8 +50,7 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
   // 세션 생성 또는 기존 세션 로드
   const initSession = useCallback(async () => {
     const supabase = createClient();
-    // 가장 최근 drafting 세션 찾기
-    const { data: existing, error: fetchErr } = await supabase
+    const { data: existing } = await supabase
       .from("sessions")
       .select("*")
       .eq("status", "drafting")
@@ -54,19 +58,15 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
       .limit(1)
       .maybeSingle();
 
-    console.log("[initSession] existing:", existing, "error:", fetchErr);
-
     if (existing) {
       setSessionId(existing.id);
       setTeamCount(existing.team_count);
     } else if (isAdmin) {
-      // 관리자만 새 세션 생성
-      const { data: newSession, error: createErr } = await supabase
+      const { data: newSession } = await supabase
         .from("sessions")
         .insert({ name: "내전", team_count: 2 })
         .select()
         .single();
-      console.log("[initSession] created:", newSession, "error:", createErr);
       if (newSession) {
         setSessionId(newSession.id);
       }
@@ -78,15 +78,39 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
     initSession();
   }, [loadPlayers, initSession]);
 
+  // 밸런스 정리: 한 줄(2칸)이 둘 다 null이면 제거, 뒤쪽 null 트림
+  const cleanBalance = (arr: (string | null)[]): (string | null)[] => {
+    // 2개씩 묶어서 둘 다 null인 쌍 제거
+    const cleaned: (string | null)[] = [];
+    for (let i = 0; i < arr.length; i += 2) {
+      const a = arr[i] ?? null;
+      const b = arr[i + 1] ?? null;
+      if (a === null && b === null) continue; // 둘 다 빈 줄이면 스킵
+      cleaned.push(a);
+      if (i + 1 < arr.length) cleaned.push(b);
+    }
+    // 뒤쪽 null 트림
+    while (cleaned.length > 0 && cleaned[cleaned.length - 1] === null) {
+      cleaned.pop();
+    }
+    return cleaned;
+  };
+
+  // 팀 배치 (밸런스에서도 제거 - null로 대체)
+  const assignTeamAndCleanBalance = useCallback(async (playerId: string, teamNumber: number) => {
+    await assignTeam(playerId, teamNumber);
+    if (teamNumber > 0) {
+      setBalance1((prev) => cleanBalance(prev.map((id) => id === playerId ? null : id)));
+      setBalance2((prev) => cleanBalance(prev.map((id) => id === playerId ? null : id)));
+    }
+  }, [assignTeam]);
+
   // 팀 수 변경 시 DB도 업데이트
   const handleTeamCountChange = async (count: number) => {
     setTeamCount(count);
     if (sessionId) {
       const supabase = createClient();
-      await supabase
-        .from("sessions")
-        .update({ team_count: count })
-        .eq("id", sessionId);
+      await supabase.from("sessions").update({ team_count: count }).eq("id", sessionId);
     }
   };
 
@@ -147,7 +171,7 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
   });
 
   return (
-    <div className="min-h-screen p-4 md:p-6 max-w-7xl mx-auto flex flex-col gap-4">
+    <div className="min-h-screen p-4 md:p-6 max-w-7xl mx-auto flex flex-col gap-5" style={{ zoom: 1.4 }}>
       {/* 헤더 */}
       <header className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="text-2xl font-extrabold">⚔️ SA 내전 팀짜기</h1>
@@ -172,7 +196,7 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
                 onClick={() => setShowTierEdit(true)}
                 className="px-3 py-1.5 text-sm rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors"
               >
-                ✏️ 티어 수정
+                ✏️ 선수 수정
               </button>
               <button
                 onClick={() => setShowRegister(true)}
@@ -219,20 +243,110 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
               </span>
               <div className="flex flex-wrap gap-1.5 flex-1">
               {tierPlayers.map((player) => {
-                const isParticipant = participants.has(player.id);
+                const info = participants.get(player.id);
+                const isParticipant = !!info;
+                const teamNum = info?.teamNumber ?? 0;
+                const teamColorClass =
+                  teamNum === 1 ? "bg-blue-700 border-blue-400 text-white" :
+                  teamNum === 2 ? "bg-red-700 border-red-400 text-white" :
+                  teamNum === 3 ? "bg-green-700 border-green-400 text-white" :
+                  teamNum === 4 ? "bg-purple-700 border-purple-400 text-white" :
+                  isParticipant ? "bg-orange-300/40 text-orange-100 border border-orange-300" :
+                  "bg-gray-800 text-gray-300 border border-gray-700 hover:border-gray-500";
+
                 return (
-                  <button
-                    key={player.id}
-                    onClick={() => isAdmin && toggleParticipant(player.id)}
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium transition-all ${
-                      isParticipant
-                        ? "bg-indigo-600 text-white border border-indigo-400"
-                        : "bg-gray-800 text-gray-300 border border-gray-700 hover:border-gray-500"
-                    } ${!isAdmin && "cursor-default"}`}
-                  >
-                    <span>{player.nickname}</span>
-                    <span className="opacity-60">{player.position}</span>
-                  </button>
+                  <div key={player.id} className="relative">
+                    <button
+                      draggable={isAdmin}
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData("playerId", player.id);
+                        e.dataTransfer.setData("fromTier", String(player.tier_score));
+                        e.dataTransfer.effectAllowed = "move";
+                      }}
+                      onDragOver={(e) => { e.preventDefault(); setDragOverPlayer(player.id); }}
+                      onDragLeave={() => setDragOverPlayer(null)}
+                      onDrop={async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setDragOverPlayer(null);
+                        const draggedId = e.dataTransfer.getData("playerId");
+                        const fromTier = e.dataTransfer.getData("fromTier");
+                        if (draggedId && fromTier === String(player.tier_score) && draggedId !== player.id) {
+                          const sameTier = players.filter((p) => p.tier_score === player.tier_score);
+                          const fromIdx = sameTier.findIndex((p) => p.id === draggedId);
+                          const toIdx = sameTier.findIndex((p) => p.id === player.id);
+                          if (fromIdx !== -1 && toIdx !== -1) {
+                            const reordered = [...sameTier];
+                            const [moved] = reordered.splice(fromIdx, 1);
+                            reordered.splice(toIdx, 0, moved);
+                            const updates = reordered.map((p, i) => ({ id: p.id, sort_order: i + 1 }));
+                            await reorderPlayers(updates);
+                            loadPlayers();
+                          }
+                        }
+                      }}
+                      onClick={() => {
+                        if (!isAdmin) return;
+                        setSelectedDbPlayer(selectedDbPlayer === player.id ? null : player.id);
+                      }}
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium transition-all border ${teamColorClass} ${
+                        selectedDbPlayer === player.id ? "ring-2 ring-white" : ""
+                      } ${dragOverPlayer === player.id ? "ring-2 ring-yellow-400" : ""} ${!isAdmin && "cursor-default"}`}
+                    >
+                      <span>{player.nickname}</span>
+                      <span className="opacity-60">{player.position}</span>
+                    </button>
+
+                    {/* 클릭 시 목적지 선택 팝업 */}
+                    {selectedDbPlayer === player.id && isAdmin && (
+                      <div className="absolute left-0 mt-1 z-20 flex gap-1 bg-gray-900 border border-gray-600 rounded-lg p-1.5 shadow-xl animate-fade-in"
+                        style={{ bottom: player.tier_score <= 3 ? '100%' : undefined, top: player.tier_score <= 3 ? undefined : '100%' }}
+                      >
+                        {!isParticipant && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); toggleParticipant(player.id); setSelectedDbPlayer(null); }}
+                            className="px-2 py-1 text-[10px] rounded bg-yellow-700 hover:bg-yellow-600 text-white font-medium whitespace-nowrap"
+                          >
+                            풀
+                          </button>
+                        )}
+                        {isParticipant && teamNum === 0 && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); toggleParticipant(player.id); setBalance1((prev) => cleanBalance(prev.map((id) => id === player.id ? null : id))); setBalance2((prev) => cleanBalance(prev.map((id) => id === player.id ? null : id))); setSelectedDbPlayer(null); }}
+                            className="px-2 py-1 text-[10px] rounded bg-gray-600 hover:bg-gray-500 text-white font-medium whitespace-nowrap"
+                          >
+                            제거
+                          </button>
+                        )}
+                        <button
+                          onClick={async (e) => { e.stopPropagation(); if (!participants.has(player.id)) await toggleParticipant(player.id); if (!balance2.includes(player.id) && !balance1.includes(player.id)) setBalance1((prev) => [...prev, player.id]); setSelectedDbPlayer(null); }}
+                          className="px-2 py-1 text-[10px] rounded bg-gray-700 hover:bg-gray-600 text-white font-medium whitespace-nowrap"
+                        >
+                          밸1
+                        </button>
+                        <button
+                          onClick={async (e) => { e.stopPropagation(); if (!participants.has(player.id)) await toggleParticipant(player.id); if (!balance1.includes(player.id) && !balance2.includes(player.id)) setBalance2((prev) => [...prev, player.id]); setSelectedDbPlayer(null); }}
+                          className="px-2 py-1 text-[10px] rounded bg-gray-700 hover:bg-gray-600 text-white font-medium whitespace-nowrap"
+                        >
+                          밸2
+                        </button>
+                        {Array.from({ length: teamCount }, (_, i) => i + 1).map((t) => (
+                          <button
+                            key={t}
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (!isParticipant) await toggleParticipant(player.id);
+                              await assignTeamAndCleanBalance(player.id, t);
+                              setSelectedDbPlayer(null);
+                            }}
+                            className="px-2 py-1 text-[10px] rounded bg-indigo-700 hover:bg-indigo-600 text-white font-medium whitespace-nowrap"
+                          >
+                            팀{t}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
               </div>
@@ -244,15 +358,88 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
             </p>
           )}
         </div>
+
+        {/* 바깥 클릭하면 DB 팝업 닫기 */}
+        {selectedDbPlayer && (
+          <div className="fixed inset-0 z-10" onClick={() => setSelectedDbPlayer(null)} />
+        )}
       </section>
 
-      {/* 참가자 풀 */}
+      {/* 참가자 풀 (티어별 그룹화) */}
       <PlayerPool
         players={poolPlayers}
+        allPlayers={players}
         participants={participants}
         teamCount={teamCount}
         isAdmin={isAdmin}
-        onAssignTeam={assignTeam}
+        onAssignTeam={assignTeamAndCleanBalance}
+        onAddToBalance={(playerId, slot) => {
+          if (slot === 1) {
+            if (balance2.includes(playerId)) return;
+            if (balance1.includes(playerId)) return;
+            setBalance1((prev) => [...prev, playerId]);
+          } else {
+            if (balance1.includes(playerId)) return;
+            if (balance2.includes(playerId)) return;
+            setBalance2((prev) => [...prev, playerId]);
+          }
+        }}
+        onToggleParticipant={toggleParticipant}
+        balanceIds={new Set([...balance1, ...balance2].filter(Boolean) as string[])}
+        onRemoveFromBalance={(playerId) => {
+          setBalance1((prev) => cleanBalance(prev.map((id) => id === playerId ? null : id)));
+          setBalance2((prev) => cleanBalance(prev.map((id) => id === playerId ? null : id)));
+        }}
+      />
+
+      {/* 밸런스 비교 */}
+      <BalanceCompare
+        players={players}
+        balance1={balance1}
+        balance2={balance2}
+        teamCount={teamCount}
+        isAdmin={isAdmin}
+        onDropToBalance={async (playerId, slot) => {
+          // 참가 안 된 선수면 먼저 참가시키기
+          if (!participants.has(playerId)) {
+            await toggleParticipant(playerId);
+          }
+          if (slot === 1) {
+            if (balance2.includes(playerId)) return;
+            if (balance1.includes(playerId)) return;
+            setBalance1((prev) => [...prev, playerId]);
+          } else {
+            if (balance1.includes(playerId)) return;
+            if (balance2.includes(playerId)) return;
+            setBalance2((prev) => [...prev, playerId]);
+          }
+        }}
+        onRemoveFromBalance={(playerId, slot) => {
+          if (slot === 1) {
+            setBalance1((prev) => cleanBalance(prev.map((id) => id === playerId ? null : id)));
+          } else {
+            setBalance2((prev) => cleanBalance(prev.map((id) => id === playerId ? null : id)));
+          }
+        }}
+        onAssignTeam={assignTeamAndCleanBalance}
+        onFillSlot={async (playerId, slot, index) => {
+          // 참가 안 된 선수면 먼저 참가시키기
+          if (!participants.has(playerId)) {
+            await toggleParticipant(playerId);
+          }
+          // 다른 밸런스에 있으면 거부
+          if (slot === 1 && balance2.includes(playerId)) return;
+          if (slot === 2 && balance1.includes(playerId)) return;
+          // 이미 같은 밸런스에 있으면 거부
+          if (slot === 1 && balance1.includes(playerId)) return;
+          if (slot === 2 && balance2.includes(playerId)) return;
+          // 빈 슬롯에 채우기
+          if (slot === 1) {
+            setBalance1((prev) => { const next = [...prev]; next[index] = playerId; return next; });
+          } else {
+            setBalance2((prev) => { const next = [...prev]; next[index] = playerId; return next; });
+          }
+        }}
       />
 
       {/* 팀 설정 */}
@@ -274,13 +461,23 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
         {isAdmin && (
           <div className="ml-auto flex gap-2">
             <button
-              onClick={clearAllParticipants}
+              onClick={() => {
+                if (window.confirm("참가자 전체를 초기화할까요? (모든 참가자가 해제됩니다)")) {
+                  clearAllParticipants();
+                  setBalance1([]);
+                  setBalance2([]);
+                }
+              }}
               className="px-3 py-1 rounded text-sm bg-orange-900/50 text-orange-300 hover:bg-orange-900 transition-colors"
             >
               참가자 초기화
             </button>
             <button
-              onClick={resetAllTeams}
+              onClick={() => {
+                if (window.confirm("팀 배치를 초기화할까요? (모든 선수가 풀로 돌아갑니다)")) {
+                  resetAllTeams();
+                }
+              }}
               className="px-3 py-1 rounded text-sm bg-red-900/50 text-red-300 hover:bg-red-900 transition-colors"
             >
               팀 초기화
@@ -295,10 +492,13 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
         participants={participants}
         teamCount={teamCount}
         isAdmin={isAdmin}
-        onAssignTeam={assignTeam}
+        onAssignTeam={assignTeamAndCleanBalance}
         onChangePosition={changePosition}
         getTeamStats={getTeamStats}
       />
+
+      {/* 맵 선택 */}
+      <MapPicker />
 
       {/* 모달: 티어 수정 */}
       {showTierEdit && (
