@@ -317,6 +317,19 @@ export default function TeamGrid({
                     );
                   });
                 })()}
+                {/* 라이플 하단 드롭존 (스나에서 라이플로 이동용) */}
+                <div
+                  onDragOver={(e) => { e.preventDefault(); }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const playerId = e.dataTransfer.getData("playerId");
+                    if (playerId && isAdmin && onDropToRifle) {
+                      onDropToRifle(teamNum, playerId);
+                    }
+                  }}
+                  className="min-h-[20px] rounded border border-transparent hover:border-dashed hover:border-gray-700"
+                />
               </div>
             </div>
           </div>

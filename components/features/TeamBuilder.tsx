@@ -129,8 +129,15 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
         }
         return prev;
       });
-      setBalance1((prev) => cleanBalance(prev.map((id) => id === playerId ? null : id)));
-      setBalance2((prev) => cleanBalance(prev.map((id) => id === playerId ? null : id)));
+      // 밸런스에서 제거 (직접 updateBalance 호출)
+      const newB1 = cleanBalance(balance1.map((id) => id === playerId ? null : id));
+      const newB2 = cleanBalance(balance2.map((id) => id === playerId ? null : id));
+      if (newB1.length !== balance1.length || newB1.some((v, i) => v !== balance1[i])) {
+        updateBalance(1, newB1);
+      }
+      if (newB2.length !== balance2.length || newB2.some((v, i) => v !== balance2[i])) {
+        updateBalance(2, newB2);
+      }
     } else {
       // 풀로 되돌릴 때 teamOrders에서 제거
       for (let t = 1; t <= 4; t++) {
@@ -143,7 +150,7 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
         });
       }
     }
-  }, [assignTeam, participants, toggleParticipant, balance1, balance2]);
+  }, [assignTeam, participants, toggleParticipant, balance1, balance2, updateBalance]);
 
   // 팀 수 변경 시 DB도 업데이트
   const handleTeamCountChange = async (count: number) => {
