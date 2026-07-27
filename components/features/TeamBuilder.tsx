@@ -174,7 +174,7 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
   });
 
   return (
-    <div className="min-h-screen p-4 md:p-6 max-w-7xl mx-auto flex flex-col gap-5" style={{ zoom: 1.4 }}>
+    <div className="min-h-screen p-4 md:p-6 max-w-7xl mx-auto flex flex-col gap-5">
       {/* 헤더 */}
       <header className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="text-2xl font-extrabold">⚔️ SA 내전 팀짜기</h1>
@@ -229,14 +229,18 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
       {/* 선수 DB (티어별) */}
       <section
         className="border border-gray-800 rounded-xl p-4 bg-gray-900/50"
-        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
+        onDragOver={(e) => { e.preventDefault(); }}
         onDrop={(e) => {
-          e.preventDefault();
+          // 이 영역에 직접 드롭된 경우만 처리 (하위 요소에서 처리 안 된 경우)
           const playerId = e.dataTransfer.getData("playerId");
           if (playerId && isAdmin && participants.has(playerId)) {
-            toggleParticipant(playerId);
-            setBalance1((prev) => cleanBalance(prev.map((id) => id === playerId ? null : id)));
-            setBalance2((prev) => cleanBalance(prev.map((id) => id === playerId ? null : id)));
+            const info = participants.get(playerId);
+            // 팀이나 풀에 있는 선수를 DB로 드래그 = 참가 해제
+            if (info && info.teamNumber === 0) {
+              toggleParticipant(playerId);
+              setBalance1((prev) => cleanBalance(prev.map((id) => id === playerId ? null : id)));
+              setBalance2((prev) => cleanBalance(prev.map((id) => id === playerId ? null : id)));
+            }
           }
         }}
       >
@@ -278,7 +282,11 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
                         e.dataTransfer.setData("fromTier", String(player.tier_score));
                         e.dataTransfer.effectAllowed = "move";
                       }}
-                      onDragOver={(e) => { e.preventDefault(); setDragOverPlayer(player.id); }}
+                      onDragOver={(e) => {
+                        const fromTier = e.dataTransfer.types.includes("text/plain") ? undefined : undefined;
+                        e.preventDefault();
+                        setDragOverPlayer(player.id);
+                      }}
                       onDragLeave={() => setDragOverPlayer(null)}
                       onDrop={async (e) => {
                         e.preventDefault();
