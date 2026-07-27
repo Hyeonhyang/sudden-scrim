@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Player } from "@/types";
-import { Position } from "@/lib/tiers";
+import { Position, getTierDisplay } from "@/lib/tiers";
 
 type Props = {
   players: Player[];
@@ -14,6 +14,8 @@ type Props = {
   onRemoveFromBalance: (playerId: string, slot: 1 | 2) => void;
   onAssignTeam: (playerId: string, teamNumber: number) => void | Promise<void>;
   onFillSlot: (playerId: string, slot: 1 | 2, index: number) => void;
+  onSwapInBalance: (slot: 1 | 2, fromIndex: number, toIndex: number) => void;
+  onSwapBetweenBalance: (fromSlot: 1 | 2, fromIndex: number, toSlot: 1 | 2, toIndex: number) => void;
 };
 
 export default function BalanceCompare({
@@ -26,6 +28,8 @@ export default function BalanceCompare({
   onRemoveFromBalance,
   onAssignTeam,
   onFillSlot,
+  onSwapInBalance,
+  onSwapBetweenBalance,
 }: Props) {
   const [selectedPlayer, setSelectedPlayer] = useState<{ id: string; slot: 1 | 2 } | null>(null);
 
@@ -38,6 +42,15 @@ export default function BalanceCompare({
     e.preventDefault();
     const playerId = e.dataTransfer.getData("playerId");
     if (playerId && isAdmin) {
+      // 반대 밸런스에서 오는 경우: 반대편에서 제거 후 이쪽에 추가
+      const otherSlot = slot === 1 ? 2 : 1;
+      const otherList = slot === 1 ? balance2 : balance1;
+      if (otherList.includes(playerId)) {
+        onRemoveFromBalance(playerId, otherSlot);
+      }
+      // 이미 같은 쪽에 있으면 무시
+      const thisList = slot === 1 ? balance1 : balance2;
+      if (thisList.includes(playerId)) return;
       onDropToBalance(playerId, slot);
     }
   };
@@ -98,7 +111,34 @@ export default function BalanceCompare({
                       draggable={isAdmin}
                       onDragStart={(e) => {
                         e.dataTransfer.setData("playerId", player.id);
+                        e.dataTransfer.setData("fromBalanceSlot", String(slot));
+                        e.dataTransfer.setData("fromBalanceIndex", String(rowIdx * 2 + colIdx));
                         e.dataTransfer.effectAllowed = "move";
+                      }}
+                      onDragOver={(e) => { e.preventDefault(); }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const draggedId = e.dataTransfer.getData("playerId");
+                        const fromSlot = e.dataTransfer.getData("fromBalanceSlot");
+                        const fromIndex = e.dataTransfer.getData("fromBalanceIndex");
+                        if (!draggedId) return;
+                        
+                        const toIndex = rowIdx * 2 + colIdx;
+                        
+                        // 같은 밸런스 내에서 swap
+                        if (fromSlot === String(slot) && fromIndex) {
+                          if (Number(fromIndex) !== toIndex) {
+                            onSwapInBalance(slot, Number(fromIndex), toIndex);
+                          }
+                        }
+                        // 다른 밸런스에서 온 경우: 서로 교체
+                        else if (fromSlot && fromSlot !== String(slot) && fromIndex && player) {
+                          const fromSlotNum = Number(fromSlot) as 1 | 2;
+                          const fromIdx = Number(fromIndex);
+                          // 교체: A를 반대편에 넣고, B를 원래 자리에 넣기
+                          onSwapBetweenBalance(fromSlotNum, fromIdx, slot, toIndex);
+                        }
                       }}
                       onClick={() => handlePlayerClick(player.id, slot)}
                       className={`inline-flex items-center gap-1.5 px-3 py-1 rounded text-sm border transition-all cursor-pointer select-none ${
@@ -107,7 +147,7 @@ export default function BalanceCompare({
                           : "bg-gray-800 border-gray-600 text-gray-200 hover:border-gray-500"
                       } ${isAdmin ? "active:scale-95" : ""}`}
                     >
-                      <span className="opacity-60 text-xs">{player.tier_label}</span>
+                      <span className="opacity-60 text-xs">{getTierDisplay(player.tier_label)}</span>
                       <span className="font-medium">{player.nickname}</span>
                       <span className="opacity-60 text-xs">{player.position}</span>
                     </button>

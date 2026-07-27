@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Player } from "@/types";
 import { TIERS, POSITIONS, Position } from "@/lib/tiers";
-import { updatePlayerTier, updatePlayerPosition } from "@/actions/players";
+import { updatePlayerTier, updatePlayerPosition, deletePlayer } from "@/actions/players";
 import { createClient } from "@/lib/supabase/client";
 
 type Props = {
@@ -156,6 +156,27 @@ export default function TierEditModal({ players, onClose, onUpdated }: Props) {
               className="w-full py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 font-semibold disabled:opacity-50 transition-colors"
             >
               {loading ? "저장 중..." : "저장"}
+            </button>
+            <button
+              onClick={async () => {
+                if (!selectedPlayer) return;
+                if (!window.confirm(`"${selectedPlayer.nickname}" 선수를 삭제할까요? 이 작업은 되돌릴 수 없습니다.`)) return;
+                setLoading(true);
+                const result = await deletePlayer(selectedPlayer.id);
+                if (result.error) {
+                  setMessage(`❌ ${result.error}`);
+                } else {
+                  setMessage(`🗑️ ${selectedPlayer.nickname} 삭제됨`);
+                  onUpdated();
+                  setSelectedPlayer(null);
+                  setSearch("");
+                }
+                setLoading(false);
+              }}
+              disabled={loading}
+              className="w-full py-2 rounded-lg bg-red-800 hover:bg-red-700 font-semibold disabled:opacity-50 transition-colors text-red-200"
+            >
+              선수 삭제
             </button>
           </div>
         )}

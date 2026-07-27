@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Player } from "@/types";
 import { getPlayers, updatePlayerTier, reorderPlayers } from "@/actions/players";
-import { TIERS, POSITION_LABELS, Position } from "@/lib/tiers";
+import { TIERS, POSITION_LABELS, Position, getTierDisplay } from "@/lib/tiers";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeSession } from "@/hooks/useRealtimeSession";
 import PlayerPool from "./PlayerPool";
@@ -32,6 +32,8 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
   const [balance2, setBalance2] = useState<(string | null)[]>([]);
   const [selectedDbPlayer, setSelectedDbPlayer] = useState<string | null>(null);
   const [dragOverPlayer, setDragOverPlayer] = useState<string | null>(null);
+  const [teamOrders, setTeamOrders] = useState<Record<number, string[]>>({});
+  const [snaSlotsByTeam, setSnaSlotsByTeam] = useState<Record<number, number>>({ 1: 2, 2: 2, 3: 2, 4: 2 });
 
   const {
     participants,
@@ -240,7 +242,7 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
           {playersByTier.map(({ tier, players: tierPlayers }) => (
             <div key={tier.score} className="flex items-start gap-2">
               <span className="text-xs font-bold text-gray-500 w-20 shrink-0 pt-0.5">
-                {tier.label}
+                {tier.display}
               </span>
               <div className="flex flex-wrap gap-1.5 flex-1">
               {tierPlayers.map((player) => {
@@ -405,12 +407,15 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
           if (!participants.has(playerId)) {
             await toggleParticipant(playerId);
           }
+          // 팀에 배치된 선수면 풀로 되돌리기
+          const info = participants.get(playerId);
+          if (info && info.teamNumber > 0) {
+            await assignTeam(playerId, 0);
+          }
           if (slot === 1) {
-            if (balance2.includes(playerId)) return;
             if (balance1.includes(playerId)) return;
             setBalance1((prev) => [...prev, playerId]);
           } else {
-            if (balance1.includes(playerId)) return;
             if (balance2.includes(playerId)) return;
             setBalance2((prev) => [...prev, playerId]);
           }
@@ -424,27 +429,58 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
         }}
         onAssignTeam={assignTeamAndCleanBalance}
         onFillSlot={async (playerId, slot, index) => {
-          // 참가 안 된 선수면 먼저 참가시키기
           if (!participants.has(playerId)) {
             await toggleParticipant(playerId);
           }
-          // 다른 밸런스에 있으면 거부
           if (slot === 1 && balance2.includes(playerId)) return;
           if (slot === 2 && balance1.includes(playerId)) return;
-          // 이미 같은 밸런스에 있으면 거부
           if (slot === 1 && balance1.includes(playerId)) return;
           if (slot === 2 && balance2.includes(playerId)) return;
-          // 빈 슬롯에 채우기
           if (slot === 1) {
             setBalance1((prev) => { const next = [...prev]; next[index] = playerId; return next; });
           } else {
             setBalance2((prev) => { const next = [...prev]; next[index] = playerId; return next; });
           }
         }}
+        onSwapInBalance={(slot, fromIndex, toIndex) => {
+          if (slot === 1) {
+            setBalance1((prev) => {
+              const next = [...prev];
+              const temp = next[fromIndex];
+              next[fromIndex] = next[toIndex];
+              next[toIndex] = temp;
+              return next;
+            });
+          } else {
+            setBalance2((prev) => {
+              const next = [...prev];
+              const temp = next[fromIndex];
+              next[fromIndex] = next[toIndex];
+              next[toIndex] = temp;
+              return next;
+            });
+          }
+        }}
+        onSwapBetweenBalance={(fromSlot, fromIndex, toSlot, toIndex) => {
+          // 밸1[fromIndex] ↔ 밸2[toIndex] 교체
+          const fromList = fromSlot === 1 ? [...balance1] : [...balance2];
+          const toList = toSlot === 1 ? [...balance1] : [...balance2];
+          const fromId = fromList[fromIndex];
+          const toId = toList[toIndex];
+          fromList[fromIndex] = toId;
+          toList[toIndex] = fromId;
+          if (fromSlot === 1) {
+            setBalance1(fromList);
+            setBalance2(toList);
+          } else {
+            setBalance2(fromList);
+            setBalance1(toList);
+          }
+        }}
       />
 
       {/* 팀 설정 */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <span className="text-sm text-gray-400">팀 수:</span>
         {[2, 3, 4].map((n) => (
           <button
@@ -496,6 +532,42 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
         onAssignTeam={assignTeamAndCleanBalance}
         onChangePosition={changePosition}
         getTeamStats={getTeamStats}
+        onSwapInTeam={(teamNum, fromIdx, toIdx) => {
+          setTeamOrders((prev) => {
+            const teamPlayers = players.filter((p) => {
+              const info = participants.get(p.id);
+              return info && info.teamNumber === teamNum;
+            });
+            const currentOrder = prev[teamNum] || teamPlayers.map((p) => p.id);
+            const next = [...currentOrder];
+            const temp = next[fromIdx];
+            next[fromIdx] = next[toIdx];
+            next[toIdx] = temp;
+            return { ...prev, [teamNum]: next };
+          });
+        }}
+        teamOrders={teamOrders}
+        snaSlotsByTeam={snaSlotsByTeam}
+        onChangeSnaSlots={isAdmin ? (teamNum, count) => setSnaSlotsByTeam((prev) => ({ ...prev, [teamNum]: count })) : undefined}
+        onSortByTier={isAdmin ? (teamNum) => {
+          const snaCount = snaSlotsByTeam[teamNum] ?? 2;
+          setTeamOrders((prev) => {
+            const teamPlayersAll = players.filter((p) => {
+              const info = participants.get(p.id);
+              return info && info.teamNumber === teamNum;
+            });
+            const currentOrder = prev[teamNum] || teamPlayersAll.map((p) => p.id);
+            // 스나 자리는 유지, 나머지만 티어순 정렬
+            const snaIds = currentOrder.slice(0, snaCount);
+            const restIds = currentOrder.slice(snaCount);
+            const restSorted = [...restIds].sort((a, b) => {
+              const pa = players.find((p) => p.id === a);
+              const pb = players.find((p) => p.id === b);
+              return (pb?.tier_score ?? 0) - (pa?.tier_score ?? 0);
+            });
+            return { ...prev, [teamNum]: [...snaIds, ...restSorted] };
+          });
+        } : undefined}
       />
 
       {/* 맵 선택 */}

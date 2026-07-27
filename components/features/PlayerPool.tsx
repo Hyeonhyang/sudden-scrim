@@ -86,7 +86,7 @@ export default function PlayerPool({ players, allPlayers, participants, teamCoun
         {playersByTier.map(({ tier, players: tierPlayers }) => (
           <div key={tier.score} className="flex items-start gap-2">
             <span className="text-xs font-bold text-gray-500 w-20 shrink-0 pt-0.5">
-              {tier.label}
+              {tier.display}
             </span>
             <div className="flex flex-wrap gap-1.5 flex-1">
               {tierPlayers.map((player) => (
