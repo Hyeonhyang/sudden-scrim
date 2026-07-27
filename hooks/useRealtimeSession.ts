@@ -47,8 +47,8 @@ export function useRealtimeSession(sessionId: string | null, players: Player[]) 
     if (data) {
       const b1 = data.find((d: { slot: number }) => d.slot === 1);
       const b2 = data.find((d: { slot: number }) => d.slot === 2);
-      setBalance1(b1?.player_ids ?? []);
-      setBalance2(b2?.player_ids ?? []);
+      setBalance1((b1?.player_ids ?? []).map((id: string) => id === "__empty__" ? null : id));
+      setBalance2((b2?.player_ids ?? []).map((id: string) => id === "__empty__" ? null : id));
     }
   }, [sessionId]);
 
@@ -148,7 +148,28 @@ export function useRealtimeSession(sessionId: string | null, players: Player[]) 
       if (current) next.set(playerId, { ...current, teamNumber });
       return next;
     });
-  }, [sessionId]);
+    // 팀에 배치되면 밸런스에서 자동 제거
+    if (teamNumber > 0) {
+      const newB1 = balance1.filter((id) => id !== playerId);
+      const newB2 = balance2.filter((id) => id !== playerId);
+      if (newB1.length !== balance1.length) {
+        const dbArray1 = newB1.map((id) => id ?? "__empty__");
+        await supabase.from("session_balance").upsert(
+          { session_id: sessionId, slot: 1, player_ids: dbArray1, updated_at: new Date().toISOString() },
+          { onConflict: "session_id,slot" }
+        );
+        setBalance1(newB1);
+      }
+      if (newB2.length !== balance2.length) {
+        const dbArray2 = newB2.map((id) => id ?? "__empty__");
+        await supabase.from("session_balance").upsert(
+          { session_id: sessionId, slot: 2, player_ids: dbArray2, updated_at: new Date().toISOString() },
+          { onConflict: "session_id,slot" }
+        );
+        setBalance2(newB2);
+      }
+    }
+  }, [sessionId, balance1, balance2]);
 
   const changePosition = useCallback(async (playerId: string, position: Position) => {
     if (!sessionId) return;
@@ -220,15 +241,18 @@ export function useRealtimeSession(sessionId: string | null, players: Player[]) 
   const updateBalance = useCallback(async (slot: 1 | 2, playerIds: (string | null)[]) => {
     if (!sessionId) return;
     const supabase = createClient();
-    const filtered = playerIds.filter(Boolean) as string[];
-    await supabase
+    // null을 "__empty__"로 대체해서 DB에 위치 보존
+    const dbArray = playerIds.map((id) => id ?? "__empty__");
+    const { error } = await supabase
       .from("session_balance")
       .upsert(
-        { session_id: sessionId, slot, player_ids: playerIds, updated_at: new Date().toISOString() },
+        { session_id: sessionId, slot, player_ids: dbArray, updated_at: new Date().toISOString() },
         { onConflict: "session_id,slot" }
       );
-    if (slot === 1) setBalance1(playerIds);
-    else setBalance2(playerIds);
+    if (!error) {
+      if (slot === 1) setBalance1(playerIds);
+      else setBalance2(playerIds);
+    }
   }, [sessionId]);
 
   return {

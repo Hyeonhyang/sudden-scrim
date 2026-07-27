@@ -114,7 +114,7 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
     updateBalance(2, newVal);
   };
 
-  // 팀 배치 (참가 안 됐으면 참가시키고, 밸런스에서도 제거)
+  // 팀 배치 (참가 안 됐으면 참가시키고)
   const assignTeamAndCleanBalance = useCallback(async (playerId: string, teamNumber: number) => {
     if (!participants.has(playerId)) {
       await toggleParticipant(playerId);
@@ -129,15 +129,6 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
         }
         return prev;
       });
-      // 밸런스에서 제거 (직접 updateBalance 호출)
-      const newB1 = cleanBalance(balance1.map((id) => id === playerId ? null : id));
-      const newB2 = cleanBalance(balance2.map((id) => id === playerId ? null : id));
-      if (newB1.length !== balance1.length || newB1.some((v, i) => v !== balance1[i])) {
-        updateBalance(1, newB1);
-      }
-      if (newB2.length !== balance2.length || newB2.some((v, i) => v !== balance2[i])) {
-        updateBalance(2, newB2);
-      }
     } else {
       // 풀로 되돌릴 때 teamOrders에서 제거
       for (let t = 1; t <= 4; t++) {
@@ -150,7 +141,7 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
         });
       }
     }
-  }, [assignTeam, participants, toggleParticipant, balance1, balance2, updateBalance]);
+  }, [assignTeam, participants, toggleParticipant]);
 
   // 팀 수 변경 시 DB도 업데이트
   const handleTeamCountChange = async (count: number) => {
