@@ -9,6 +9,7 @@ import { useRealtimeSession } from "@/hooks/useRealtimeSession";
 import PlayerPool from "./PlayerPool";
 import TeamGrid from "./TeamGrid";
 import MapPicker from "./MapPicker";
+import RulesBox from "./RulesBox";
 import BalanceCompare from "./BalanceCompare";
 import TierEditModal from "./TierEditModal";
 import TextParseModal from "./TextParseModal";
@@ -499,6 +500,9 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
 
       {/* 맵 선택 */}
       <MapPicker />
+
+      {/* 룰 */}
+      <RulesBox isAdmin={isAdmin} />
 
       {/* 모달: 티어 수정 */}
       {showTierEdit && (
