@@ -471,7 +471,26 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
           }
           // 팀에 배치된 선수면 풀로 되돌리기
           const info = participants.get(playerId);
+          console.log("[dropToBalance] playerId:", playerId, "info:", info);
           if (info && info.teamNumber > 0) {
+            console.log("[dropToBalance] removing from team", info.teamNumber);
+            // 스나에서도 제거
+            setTeamSnaPlayers((prev) => {
+              const teamNum = info.teamNumber;
+              const current = [...(prev[teamNum] || [null, null])];
+              const idx = current.indexOf(playerId);
+              if (idx !== -1) current[idx] = null;
+              return { ...prev, [teamNum]: current };
+            });
+            // teamOrders에서도 제거
+            setTeamOrders((prev) => {
+              const teamNum = info.teamNumber;
+              const current = prev[teamNum];
+              if (current) {
+                return { ...prev, [teamNum]: current.filter((id) => id !== playerId) };
+              }
+              return prev;
+            });
             await assignTeam(playerId, 0);
           }
           if (slot === 1) {
@@ -494,14 +513,64 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
           if (!participants.has(playerId)) {
             await toggleParticipant(playerId);
           }
+          // 팀에 배치된 선수면 풀로 되돌리기
+          const info = participants.get(playerId);
+          if (info && info.teamNumber > 0) {
+            setTeamSnaPlayers((prev) => {
+              const teamNum = info.teamNumber;
+              const current = [...(prev[teamNum] || [null, null])];
+              const idx = current.indexOf(playerId);
+              if (idx !== -1) current[idx] = null;
+              return { ...prev, [teamNum]: current };
+            });
+            setTeamOrders((prev) => {
+              const teamNum = info.teamNumber;
+              const current = prev[teamNum];
+              if (current) return { ...prev, [teamNum]: current.filter((id) => id !== playerId) };
+              return prev;
+            });
+            await assignTeam(playerId, 0);
+          }
           if (slot === 1 && balance2.includes(playerId)) return;
           if (slot === 2 && balance1.includes(playerId)) return;
           if (slot === 1 && balance1.includes(playerId)) return;
           if (slot === 2 && balance2.includes(playerId)) return;
           if (slot === 1) {
-            setBalance1((prev) => { const next = [...prev]; next[index] = playerId; return next; });
+            setBalance1((prev) => {
+              const next = [...prev];
+              // 같은 밸런스 내에서 이동이면 원래 자리 비우기
+              const existingIdx = next.indexOf(playerId);
+              if (existingIdx !== -1) next[existingIdx] = null;
+              next[index] = playerId;
+              // cleanBalance 적용
+              const cleaned: (string | null)[] = [];
+              for (let i = 0; i < next.length; i += 2) {
+                const a = next[i] ?? null;
+                const b = next[i + 1] ?? null;
+                if (a === null && b === null) continue;
+                cleaned.push(a);
+                if (i + 1 < next.length) cleaned.push(b);
+              }
+              while (cleaned.length > 0 && cleaned[cleaned.length - 1] === null) cleaned.pop();
+              return cleaned;
+            });
           } else {
-            setBalance2((prev) => { const next = [...prev]; next[index] = playerId; return next; });
+            setBalance2((prev) => {
+              const next = [...prev];
+              const existingIdx = next.indexOf(playerId);
+              if (existingIdx !== -1) next[existingIdx] = null;
+              next[index] = playerId;
+              const cleaned: (string | null)[] = [];
+              for (let i = 0; i < next.length; i += 2) {
+                const a = next[i] ?? null;
+                const b = next[i + 1] ?? null;
+                if (a === null && b === null) continue;
+                cleaned.push(a);
+                if (i + 1 < next.length) cleaned.push(b);
+              }
+              while (cleaned.length > 0 && cleaned[cleaned.length - 1] === null) cleaned.pop();
+              return cleaned;
+            });
           }
         }}
         onSwapInBalance={(slot, fromIndex, toIndex) => {
@@ -511,7 +580,17 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
               const temp = next[fromIndex];
               next[fromIndex] = next[toIndex];
               next[toIndex] = temp;
-              return next;
+              // clean: 한 줄 둘 다 null이면 제거, 뒤쪽 null 트림
+              const cleaned: (string | null)[] = [];
+              for (let i = 0; i < next.length; i += 2) {
+                const a = next[i] ?? null;
+                const b = next[i + 1] ?? null;
+                if (a === null && b === null) continue;
+                cleaned.push(a);
+                if (i + 1 < next.length) cleaned.push(b);
+              }
+              while (cleaned.length > 0 && cleaned[cleaned.length - 1] === null) cleaned.pop();
+              return cleaned;
             });
           } else {
             setBalance2((prev) => {
@@ -519,7 +598,16 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
               const temp = next[fromIndex];
               next[fromIndex] = next[toIndex];
               next[toIndex] = temp;
-              return next;
+              const cleaned: (string | null)[] = [];
+              for (let i = 0; i < next.length; i += 2) {
+                const a = next[i] ?? null;
+                const b = next[i + 1] ?? null;
+                if (a === null && b === null) continue;
+                cleaned.push(a);
+                if (i + 1 < next.length) cleaned.push(b);
+              }
+              while (cleaned.length > 0 && cleaned[cleaned.length - 1] === null) cleaned.pop();
+              return cleaned;
             });
           }
         }}

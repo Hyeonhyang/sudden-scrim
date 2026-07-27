@@ -65,10 +65,11 @@ export default function BalanceCompare({
   };
 
   const handleMoveTo = (playerId: string, slot: 1 | 2, target: "pool" | number) => {
-    onRemoveFromBalance(playerId, slot);
     if (target === "pool") {
+      onRemoveFromBalance(playerId, slot);
       onAssignTeam(playerId, 0);
     } else {
+      // 팀으로 보낼 때 - 훅 내부에서 밸런스 제거 (null로 위치 유지)
       onAssignTeam(playerId, target);
     }
     setSelectedPlayer(null);
@@ -136,8 +137,11 @@ export default function BalanceCompare({
                         else if (fromSlot && fromSlot !== String(slot) && fromIndex && player) {
                           const fromSlotNum = Number(fromSlot) as 1 | 2;
                           const fromIdx = Number(fromIndex);
-                          // 교체: A를 반대편에 넣고, B를 원래 자리에 넣기
                           onSwapBetweenBalance(fromSlotNum, fromIdx, slot, toIndex);
+                        }
+                        // 밸런스 외부(팀/풀/DB)에서 온 경우: 밸런스에 추가
+                        else if (!fromSlot) {
+                          onDropToBalance(draggedId, slot);
                         }
                       }}
                       onClick={() => handlePlayerClick(player.id, slot)}
@@ -173,7 +177,7 @@ export default function BalanceCompare({
                               onSwapBetweenBalance(fromSlotNum, fromIdx, slot, idx);
                             }
                           } else {
-                            // 외부에서 빈 슬롯에 채우기
+                            // 외부(팀/풀/DB)에서 빈 슬롯에 드롭
                             onFillSlot(playerId, slot, idx);
                           }
                         }

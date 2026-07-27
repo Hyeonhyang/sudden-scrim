@@ -19,7 +19,7 @@ export default function TextParseModal({ players, onClose, onApply }: Props) {
   const [text, setText] = useState("");
   const [results, setResults] = useState<ParsedResult[] | null>(null);
 
-  const KEYWORDS = ["ㅅ", "손"];
+  const KEYWORDS = ["ㅅ", "손", "t"];
 
   // 연속 매칭 점수 계산 (2글자 이상 연속으로 겹치는 횟수)
   const getMatchScore = (dbNick: string, discordNick: string): number => {
