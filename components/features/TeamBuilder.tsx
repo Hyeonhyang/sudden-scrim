@@ -625,22 +625,14 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
           });
         } : undefined}
         onSortByTier={isAdmin ? (teamNum) => {
-          const snaCount = snaSlotsByTeam[teamNum] ?? 2;
-          setTeamOrders((prev) => {
-            const teamPlayersAll = players.filter((p) => {
-              const info = participants.get(p.id);
-              return info && info.teamNumber === teamNum;
-            });
-            const currentOrder = prev[teamNum] || teamPlayersAll.map((p) => p.id);
-            const snaIds = currentOrder.slice(0, snaCount);
-            const restIds = currentOrder.slice(snaCount);
-            const restSorted = [...restIds].sort((a, b) => {
-              const pa = players.find((p) => p.id === a);
-              const pb = players.find((p) => p.id === b);
-              return (pb?.tier_score ?? 0) - (pa?.tier_score ?? 0);
-            });
-            return { ...prev, [teamNum]: [...snaIds, ...restSorted] };
+          // 라이플 선수만 티어순 정렬
+          const snaIds = new Set((teamSnaPlayers[teamNum] || []).filter(Boolean) as string[]);
+          const teamPlayersAll = players.filter((p) => {
+            const info = participants.get(p.id);
+            return info && info.teamNumber === teamNum && !snaIds.has(p.id);
           });
+          const sorted = [...teamPlayersAll].sort((a, b) => b.tier_score - a.tier_score);
+          setTeamOrders((prev) => ({ ...prev, [teamNum]: sorted.map((p) => p.id) }));
         } : undefined}
         onDropToSna={isAdmin ? (teamNum, slotIdx, playerId) => {
           // 참가 안 됐으면 참가시키고 팀 배치

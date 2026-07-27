@@ -221,7 +221,14 @@ export default function TeamGrid({
               >
                 {(() => {
                   const snaIds = new Set((teamSnaPlayers?.[teamNum] ?? []).filter(Boolean) as string[]);
-                  const riflePlayers = teamPlayers.filter(p => !snaIds.has(p.id));
+                  const riflePlayersRaw = teamPlayers.filter(p => !snaIds.has(p.id));
+                  // teamOrders로 정렬
+                  const order = teamOrders?.[teamNum];
+                  const riflePlayers = order
+                    ? order.map(id => riflePlayersRaw.find(p => p.id === id)).filter(Boolean).concat(
+                        riflePlayersRaw.filter(p => !order.includes(p.id))
+                      ) as Player[]
+                    : riflePlayersRaw;
                   
                   if (riflePlayers.length === 0) {
                     return <p className="text-gray-700 text-[10px] text-center py-1">라이플 자리</p>;

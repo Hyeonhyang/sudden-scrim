@@ -158,14 +158,21 @@ export default function BalanceCompare({
                         e.preventDefault();
                         e.stopPropagation();
                         const playerId = e.dataTransfer.getData("playerId");
+                        const fromBalanceSlot = e.dataTransfer.getData("fromBalanceSlot");
                         if (playerId && isAdmin) {
-                          // 빈 슬롯에 채워넣기
                           const idx = rowIdx * 2 + colIdx;
-                          if (slot === 1) {
-                            onFillSlot(playerId, 1, idx);
-                          } else {
-                            onFillSlot(playerId, 2, idx);
+                          // 반대편 밸런스에서 온 경우 원래 자리에서 제거
+                          if (fromBalanceSlot && Number(fromBalanceSlot) !== slot) {
+                            onRemoveFromBalance(playerId, Number(fromBalanceSlot) as 1 | 2);
                           }
+                          // 같은 밸런스에서 온 경우도 원래 자리에서 제거
+                          if (fromBalanceSlot && Number(fromBalanceSlot) === slot) {
+                            const fromIdx = Number(e.dataTransfer.getData("fromBalanceIndex"));
+                            if (!isNaN(fromIdx)) {
+                              onRemoveFromBalance(playerId, slot);
+                            }
+                          }
+                          onFillSlot(playerId, slot, idx);
                         }
                       }}
                       className="inline-flex items-center px-3 py-1 rounded text-sm border border-dashed border-gray-700 text-gray-700 min-w-[60px] justify-center hover:border-gray-500 hover:text-gray-500 transition-colors"
