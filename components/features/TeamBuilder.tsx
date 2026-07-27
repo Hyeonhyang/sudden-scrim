@@ -28,8 +28,6 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
   const [showTierEdit, setShowTierEdit] = useState(false);
   const [search, setSearch] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [balance1, setBalance1] = useState<(string | null)[]>([]);
-  const [balance2, setBalance2] = useState<(string | null)[]>([]);
   const [selectedDbPlayer, setSelectedDbPlayer] = useState<string | null>(null);
   const [dragOverPlayer, setDragOverPlayer] = useState<string | null>(null);
   const [teamOrders, setTeamOrders] = useState<Record<number, string[]>>({});
@@ -37,12 +35,15 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
 
   const {
     participants,
+    balance1,
+    balance2,
     toggleParticipant,
     assignTeam,
     changePosition,
     resetAllTeams,
     clearAllParticipants,
     addMultipleParticipants,
+    updateBalance,
   } = useRealtimeSession(sessionId, players);
 
   const loadPlayers = useCallback(async () => {
@@ -99,14 +100,27 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
     return cleaned;
   };
 
-  // 팀 배치 (밸런스에서도 제거 - null로 대체)
+  // 밸런스 업데이트 래퍼 (로컬 + DB)
+  const setBalance1 = (updater: (string | null)[] | ((prev: (string | null)[]) => (string | null)[])) => {
+    const newVal = typeof updater === "function" ? updater(balance1) : updater;
+    updateBalance(1, newVal);
+  };
+  const setBalance2 = (updater: (string | null)[] | ((prev: (string | null)[]) => (string | null)[])) => {
+    const newVal = typeof updater === "function" ? updater(balance2) : updater;
+    updateBalance(2, newVal);
+  };
+
+  // 팀 배치 (참가 안 됐으면 참가시키고, 밸런스에서도 제거)
   const assignTeamAndCleanBalance = useCallback(async (playerId: string, teamNumber: number) => {
+    if (!participants.has(playerId)) {
+      await toggleParticipant(playerId);
+    }
     await assignTeam(playerId, teamNumber);
     if (teamNumber > 0) {
       setBalance1((prev) => cleanBalance(prev.map((id) => id === playerId ? null : id)));
       setBalance2((prev) => cleanBalance(prev.map((id) => id === playerId ? null : id)));
     }
-  }, [assignTeam]);
+  }, [assignTeam, participants, toggleParticipant]);
 
   // 팀 수 변경 시 DB도 업데이트
   const handleTeamCountChange = async (count: number) => {

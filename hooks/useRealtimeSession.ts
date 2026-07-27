@@ -12,6 +12,8 @@ type ParticipantInfo = {
 
 export function useRealtimeSession(sessionId: string | null, players: Player[]) {
   const [participants, setParticipants] = useState<Map<string, ParticipantInfo>>(new Map());
+  const [balance1, setBalance1] = useState<(string | null)[]>([]);
+  const [balance2, setBalance2] = useState<(string | null)[]>([]);
 
   // DB에서 초기 로드
   const loadSessionPlayers = useCallback(async () => {
@@ -34,12 +36,29 @@ export function useRealtimeSession(sessionId: string | null, players: Player[]) 
     }
   }, [sessionId]);
 
-  // Realtime 구독 + 폴링 (5초마다 갱신)
+  const loadBalance = useCallback(async () => {
+    if (!sessionId) return;
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("session_balance")
+      .select("*")
+      .eq("session_id", sessionId);
+
+    if (data) {
+      const b1 = data.find((d: { slot: number }) => d.slot === 1);
+      const b2 = data.find((d: { slot: number }) => d.slot === 2);
+      setBalance1(b1?.player_ids ?? []);
+      setBalance2(b2?.player_ids ?? []);
+    }
+  }, [sessionId]);
+
+  // Realtime 구독 + 폴링
   useEffect(() => {
     if (!sessionId) return;
     const supabase = createClient();
 
     loadSessionPlayers();
+    loadBalance();
 
     // Realtime 시도
     const channel = supabase
@@ -52,22 +71,31 @@ export function useRealtimeSession(sessionId: string | null, players: Player[]) 
           table: "session_players",
           filter: `session_id=eq.${sessionId}`,
         },
-        () => {
-          loadSessionPlayers();
-        }
+        () => { loadSessionPlayers(); }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "session_balance",
+          filter: `session_id=eq.${sessionId}`,
+        },
+        () => { loadBalance(); }
       )
       .subscribe();
 
-    // 폴링 백업 (Realtime 안 될 경우 대비)
+    // 폴링 백업
     const interval = setInterval(() => {
       loadSessionPlayers();
+      loadBalance();
     }, 1000);
 
     return () => {
       supabase.removeChannel(channel);
       clearInterval(interval);
     };
-  }, [sessionId, loadSessionPlayers]);
+  }, [sessionId, loadSessionPlayers, loadBalance]);
 
   // --- 관리자 액션들 (DB에 직접 쓰기) ---
 
@@ -189,13 +217,30 @@ export function useRealtimeSession(sessionId: string | null, players: Player[]) 
     }
   }, [sessionId, participants]);
 
+  const updateBalance = useCallback(async (slot: 1 | 2, playerIds: (string | null)[]) => {
+    if (!sessionId) return;
+    const supabase = createClient();
+    const filtered = playerIds.filter(Boolean) as string[];
+    await supabase
+      .from("session_balance")
+      .upsert(
+        { session_id: sessionId, slot, player_ids: playerIds, updated_at: new Date().toISOString() },
+        { onConflict: "session_id,slot" }
+      );
+    if (slot === 1) setBalance1(playerIds);
+    else setBalance2(playerIds);
+  }, [sessionId]);
+
   return {
     participants,
+    balance1,
+    balance2,
     toggleParticipant,
     assignTeam,
     changePosition,
     resetAllTeams,
     clearAllParticipants,
     addMultipleParticipants,
+    updateBalance,
   };
 }
