@@ -159,20 +159,23 @@ export default function BalanceCompare({
                         e.stopPropagation();
                         const playerId = e.dataTransfer.getData("playerId");
                         const fromBalanceSlot = e.dataTransfer.getData("fromBalanceSlot");
+                        const fromBalanceIndex = e.dataTransfer.getData("fromBalanceIndex");
                         if (playerId && isAdmin) {
                           const idx = rowIdx * 2 + colIdx;
-                          // 반대편 밸런스에서 온 경우 원래 자리에서 제거
-                          if (fromBalanceSlot && Number(fromBalanceSlot) !== slot) {
-                            onRemoveFromBalance(playerId, Number(fromBalanceSlot) as 1 | 2);
-                          }
-                          // 같은 밸런스에서 온 경우도 원래 자리에서 제거
-                          if (fromBalanceSlot && Number(fromBalanceSlot) === slot) {
-                            const fromIdx = Number(e.dataTransfer.getData("fromBalanceIndex"));
-                            if (!isNaN(fromIdx)) {
-                              onRemoveFromBalance(playerId, slot);
+                          if (fromBalanceSlot) {
+                            const fromSlotNum = Number(fromBalanceSlot) as 1 | 2;
+                            const fromIdx = Number(fromBalanceIndex);
+                            // 같은 밸런스 내 이동
+                            if (fromSlotNum === slot) {
+                              onSwapInBalance(slot, fromIdx, idx);
+                            } else {
+                              // 다른 밸런스에서 빈자리로 이동
+                              onSwapBetweenBalance(fromSlotNum, fromIdx, slot, idx);
                             }
+                          } else {
+                            // 외부에서 빈 슬롯에 채우기
+                            onFillSlot(playerId, slot, idx);
                           }
-                          onFillSlot(playerId, slot, idx);
                         }
                       }}
                       className="inline-flex items-center px-3 py-1 rounded text-sm border border-dashed border-gray-700 text-gray-700 min-w-[60px] justify-center hover:border-gray-500 hover:text-gray-500 transition-colors"

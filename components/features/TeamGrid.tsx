@@ -21,6 +21,7 @@ type Props = {
   onDropToSna?: (teamNum: number, slotIdx: number, playerId: string) => void;
   onDropToRifle?: (teamNum: number, playerId: string) => void;
   onRemoveSna?: (teamNum: number, slotIdx: number) => void;
+  onReorderRifle?: (teamNum: number, newOrder: string[]) => void;
 };
 
 const TEAM_COLORS = [
@@ -56,6 +57,7 @@ export default function TeamGrid({
   onDropToSna,
   onDropToRifle,
   onRemoveSna,
+  onReorderRifle,
 }: Props) {
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -75,13 +77,18 @@ export default function TeamGrid({
     <div className={`grid gap-4 ${teamCount <= 2 ? "grid-cols-1 md:grid-cols-2" : teamCount === 3 ? "grid-cols-1 md:grid-cols-3" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-4"}`}>
       {Array.from({ length: teamCount }, (_, i) => i + 1).map((teamNum) => {
         const stats = getTeamStats(teamNum);
-        const teamPlayersRaw = players.filter((p) => {
-          const info = participants.get(p.id);
-          return info && info.teamNumber === teamNum;
-        });
-        // teamOrders로 정렬 (없으면 참가 순서 유지 - tier 정렬 안 함)
+        const teamPlayersRaw: Player[] = [];
+        // participants Map 순서 = 추가된 순서
+        for (const [pid] of participants) {
+          const info = participants.get(pid);
+          if (info && info.teamNumber === teamNum) {
+            const p = players.find((pl) => pl.id === pid);
+            if (p) teamPlayersRaw.push(p);
+          }
+        }
+        // teamOrders로 정렬 (정렬 버튼 눌러야만)
         const order = teamOrders?.[teamNum];
-        const teamPlayers = order
+        const teamPlayers = order && order.length > 0
           ? order.map((id) => teamPlayersRaw.find((p) => p.id === id)).filter(Boolean).concat(
               teamPlayersRaw.filter((p) => !order.includes(p.id))
             ) as Player[]
@@ -161,6 +168,14 @@ export default function TeamGrid({
                       onDrop={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
+                        // 라이플에서 스나로 드래그된 경우 swap
+                        const draggedId = e.dataTransfer.getData("playerId");
+                        const fromArea = e.dataTransfer.getData("fromArea");
+                        if (draggedId && isAdmin && player && fromArea === "rifle") {
+                          // 라이플 선수를 스나 슬롯에 넣고, 스나 선수를 라이플로
+                          if (onDropToSna) onDropToSna(teamNum, slotIdx, draggedId);
+                          if (onDropToRifle) onDropToRifle(teamNum, player.id);
+                        }
                       }}
                       className="flex items-center justify-between px-2 py-1.5 rounded bg-gray-800/60 text-sm cursor-grab active:cursor-grabbing"
                     >
@@ -222,9 +237,9 @@ export default function TeamGrid({
                 {(() => {
                   const snaIds = new Set((teamSnaPlayers?.[teamNum] ?? []).filter(Boolean) as string[]);
                   const riflePlayersRaw = teamPlayers.filter(p => !snaIds.has(p.id));
-                  // teamOrders로 정렬
+                  // teamOrders로 정렬 (정렬 버튼 눌러야만)
                   const order = teamOrders?.[teamNum];
-                  const riflePlayers = order
+                  const riflePlayers = order && order.length > 0
                     ? order.map(id => riflePlayersRaw.find(p => p.id === id)).filter(Boolean).concat(
                         riflePlayersRaw.filter(p => !order.includes(p.id))
                       ) as Player[]
@@ -251,9 +266,37 @@ export default function TeamGrid({
                         onDrop={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          const playerId = e.dataTransfer.getData("playerId");
-                          if (playerId && isAdmin && onDropToRifle && playerId !== player.id) {
-                            onDropToRifle(teamNum, playerId);
+                          const draggedId = e.dataTransfer.getData("playerId");
+                          const fromArea = e.dataTransfer.getData("fromArea");
+                          const fromTeam = e.dataTransfer.getData("fromTeam");
+                          if (draggedId && isAdmin && player.id !== draggedId) {
+                            if (fromArea === "sna") {
+                              // 스나 선수를 라이플로 내리고, 이 라이플 선수를 스나로
+                              const fromSlotIdx = Number(e.dataTransfer.getData("fromSlotIdx"));
+                              if (onDropToRifle) onDropToRifle(teamNum, draggedId);
+                              if (onDropToSna && !isNaN(fromSlotIdx)) onDropToSna(teamNum, fromSlotIdx, player.id);
+                            } else if (fromArea === "rifle" && fromTeam === String(teamNum) && onSwapInTeam) {
+                              // 같은 팀 라이플 내 swap
+                              const snaIds = new Set((teamSnaPlayers?.[teamNum] ?? []).filter(Boolean) as string[]);
+                              const riflePlayersLocal = teamPlayers.filter(p => !snaIds.has(p.id));
+                              const fromIdx = riflePlayersLocal.findIndex(p => p.id === draggedId);
+                              const toIdx = riflePlayersLocal.findIndex(p => p.id === player.id);
+                              if (fromIdx !== -1 && toIdx !== -1 && fromIdx !== toIdx) {
+                                // teamOrders 업데이트로 순서 변경
+                                const order = teamOrders?.[teamNum] ?? riflePlayersLocal.map(p => p.id);
+                                const newOrder = [...order];
+                                const fIdx = newOrder.indexOf(draggedId);
+                                const tIdx = newOrder.indexOf(player.id);
+                                if (fIdx !== -1 && tIdx !== -1) {
+                                  const temp = newOrder[fIdx];
+                                  newOrder[fIdx] = newOrder[tIdx];
+                                  newOrder[tIdx] = temp;
+                                  if (onReorderRifle) onReorderRifle(teamNum, newOrder);
+                                }
+                              }
+                            } else if (onDropToRifle) {
+                              onDropToRifle(teamNum, draggedId);
+                            }
                           }
                         }}
                         className="flex items-center justify-between px-2 py-1.5 rounded bg-gray-800/60 text-sm cursor-grab active:cursor-grabbing"

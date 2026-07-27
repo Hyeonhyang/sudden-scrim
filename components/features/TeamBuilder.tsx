@@ -534,11 +534,11 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
           fromList[fromIndex] = toId;
           toList[toIndex] = fromId;
           if (fromSlot === 1) {
-            setBalance1(fromList);
-            setBalance2(toList);
+            setBalance1(cleanBalance(fromList));
+            setBalance2(cleanBalance(toList));
           } else {
-            setBalance2(fromList);
-            setBalance1(toList);
+            setBalance2(cleanBalance(fromList));
+            setBalance1(cleanBalance(toList));
           }
         }}
       />
@@ -680,6 +680,9 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
           if (playerId) {
             assignTeamAndCleanBalance(playerId, 0);
           }
+        } : undefined}
+        onReorderRifle={isAdmin ? (teamNum, newOrder) => {
+          setTeamOrders((prev) => ({ ...prev, [teamNum]: newOrder }));
         } : undefined}
       />
 
