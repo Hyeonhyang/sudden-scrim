@@ -241,7 +241,14 @@ export default function TeamGrid({
                           e.dataTransfer.effectAllowed = "move";
                         }}
                         onDragOver={(e) => { e.preventDefault(); }}
-                        onDrop={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const playerId = e.dataTransfer.getData("playerId");
+                          if (playerId && isAdmin && onDropToRifle && playerId !== player.id) {
+                            onDropToRifle(teamNum, playerId);
+                          }
+                        }}
                         className="flex items-center justify-between px-2 py-1.5 rounded bg-gray-800/60 text-sm cursor-grab active:cursor-grabbing"
                       >
                         <div className="flex items-center gap-2">
