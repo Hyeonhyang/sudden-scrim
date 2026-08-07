@@ -85,6 +85,15 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
   useEffect(() => {
     loadPlayers();
     initSession();
+
+    // 브라우저 드래그 상태 stuck 방지
+    const handleMouseUp = () => {
+      document.querySelectorAll('[draggable="true"]').forEach((el) => {
+        el.dispatchEvent(new DragEvent('dragend', { bubbles: true }));
+      });
+    };
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => document.removeEventListener('mouseup', handleMouseUp);
   }, [loadPlayers, initSession]);
 
   // 밸런스 정리: 한 줄(2칸)이 둘 다 null이면 제거, 뒤쪽 null 트림
