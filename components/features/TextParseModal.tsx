@@ -50,14 +50,14 @@ export default function TextParseModal({ players, onClose, onApply }: Props) {
 
       // 참가 여부 판단
       let isParticipant = false;
-      if (KEYWORDS.some((kw) => line.endsWith(kw))) {
+      if (KEYWORDS.some((kw) => line.includes(kw))) {
         isParticipant = true;
       } else {
         for (let j = i + 1; j < lines.length; j++) {
           const nextLine = lines[j];
           if (!nextLine) continue;
           if (nextLine.includes("#")) break;
-          if (KEYWORDS.some((kw) => nextLine === kw || nextLine.endsWith(kw))) {
+          if (KEYWORDS.some((kw) => nextLine.includes(kw))) {
             isParticipant = true;
             break;
           }

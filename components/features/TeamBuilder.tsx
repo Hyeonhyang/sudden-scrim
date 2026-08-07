@@ -26,6 +26,7 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
   const [showRegister, setShowRegister] = useState(false);
   const [showTextParse, setShowTextParse] = useState(false);
   const [showTierEdit, setShowTierEdit] = useState(false);
+  const [editTargetPlayer, setEditTargetPlayer] = useState<Player | undefined>(undefined);
   const [search, setSearch] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [selectedDbPlayer, setSelectedDbPlayer] = useState<string | null>(null);
@@ -231,7 +232,7 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
                 📋 텍스트 파싱
               </button>
               <button
-                onClick={() => setShowTierEdit(true)}
+                onClick={() => { setEditTargetPlayer(undefined); setShowTierEdit(true); }}
                 className="px-3 py-1.5 text-sm rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors"
               >
                 ✏️ 선수 수정
@@ -249,6 +250,13 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
             className="px-3 py-1.5 text-sm rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors"
           >
             📋 팀 복사
+          </button>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-3 py-1.5 text-sm rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors"
+            title="새로고침"
+          >
+            🔄
           </button>
           {onGoHome && (
             <button
@@ -367,6 +375,13 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
                       <div className="absolute left-0 mt-1 z-20 flex gap-1 bg-gray-900 border border-gray-600 rounded-lg p-1.5 shadow-xl animate-fade-in"
                         style={{ bottom: player.tier_score <= 3 ? '100%' : undefined, top: player.tier_score <= 3 ? undefined : '100%' }}
                       >
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setEditTargetPlayer(player); setShowTierEdit(true); setSelectedDbPlayer(null); }}
+                          className="px-2 py-1 text-[10px] rounded bg-gray-600 hover:bg-gray-500 text-white font-medium whitespace-nowrap"
+                          title="선수 수정"
+                        >
+                          ✏️
+                        </button>
                         {!isParticipant && (
                           <button
                             onClick={(e) => { e.stopPropagation(); toggleParticipant(player.id); setSelectedDbPlayer(null); }}
@@ -782,8 +797,9 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
       {showTierEdit && (
         <TierEditModal
           players={players}
-          onClose={() => setShowTierEdit(false)}
+          onClose={() => { setShowTierEdit(false); setEditTargetPlayer(undefined); }}
           onUpdated={loadPlayers}
+          defaultPlayer={editTargetPlayer}
         />
       )}
 

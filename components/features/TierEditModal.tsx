@@ -10,14 +10,15 @@ type Props = {
   players: Player[];
   onClose: () => void;
   onUpdated: () => void;
+  defaultPlayer?: Player;
 };
 
-export default function TierEditModal({ players, onClose, onUpdated }: Props) {
-  const [search, setSearch] = useState("");
-  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
-  const [newTierScore, setNewTierScore] = useState<number | null>(null);
-  const [newNickname, setNewNickname] = useState("");
-  const [newPosition, setNewPosition] = useState<Position>("R");
+export default function TierEditModal({ players, onClose, onUpdated, defaultPlayer }: Props) {
+  const [search, setSearch] = useState(defaultPlayer?.nickname ?? "");
+  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(defaultPlayer ?? null);
+  const [newTierScore, setNewTierScore] = useState<number | null>(defaultPlayer?.tier_score ?? null);
+  const [newNickname, setNewNickname] = useState(defaultPlayer?.nickname ?? "");
+  const [newPosition, setNewPosition] = useState<Position>(defaultPlayer?.position ?? "R");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 

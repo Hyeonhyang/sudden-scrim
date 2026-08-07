@@ -5,11 +5,12 @@ export type TierInfo = {
 };
 
 export const TIERS: TierInfo[] = [
-  { label: "별5", score: 22, display: "⭐⭐⭐⭐⭐" },
-  { label: "별4", score: 21, display: "⭐⭐⭐⭐" },
-  { label: "별3", score: 20, display: "⭐⭐⭐" },
-  { label: "별2", score: 19, display: "⭐⭐" },
-  { label: "별1", score: 18, display: "⭐" },
+  { label: "별5", score: 23, display: "⭐⭐⭐⭐⭐" },
+  { label: "별4", score: 22, display: "⭐⭐⭐⭐" },
+  { label: "별3", score: 21, display: "⭐⭐⭐" },
+  { label: "별2", score: 20, display: "⭐⭐" },
+  { label: "별1", score: 19, display: "⭐" },
+  { label: "0티어", score: 18, display: "0티어" },
   { label: "1티어", score: 17, display: "1티어" },
   { label: "1.25티어", score: 16, display: "1.25티어" },
   { label: "1.5티어", score: 15, display: "1.5티어" },
