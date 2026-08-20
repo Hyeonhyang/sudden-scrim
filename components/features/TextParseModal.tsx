@@ -19,7 +19,22 @@ export default function TextParseModal({ players, onClose, onApply }: Props) {
   const [text, setText] = useState("");
   const [results, setResults] = useState<ParsedResult[] | null>(null);
 
-  const KEYWORDS = ["ㅅ", "손", "t", "T", "발"];
+  const KEYWORDS = ["ㅅ", "손", "발"];
+  const WORD_KEYWORDS = ["t", "T"]; // 단어 단위로만 매칭, 닉네임 줄에서는 체크 안 함
+
+  // 닉네임 줄(#포함)에서는 KEYWORDS만 체크, 다음 줄에서는 WORD_KEYWORDS도 체크
+  const hasKeywordInNickLine = (text: string): boolean => {
+    return KEYWORDS.some((kw) => text.includes(kw));
+  };
+
+  const hasKeywordInNextLine = (text: string): boolean => {
+    if (KEYWORDS.some((kw) => text.includes(kw))) return true;
+    // t/T는 공백이나 줄 끝에 단독으로 있을 때만
+    return WORD_KEYWORDS.some((kw) => {
+      const regex = new RegExp(`(^|\\s)${kw}(\\s|$)`);
+      return regex.test(text);
+    });
+  };
 
   // 연속 매칭 점수 계산 (2글자 이상 연속으로 겹치는 횟수)
   const getMatchScore = (dbNick: string, discordNick: string): number => {
@@ -50,14 +65,14 @@ export default function TextParseModal({ players, onClose, onApply }: Props) {
 
       // 참가 여부 판단
       let isParticipant = false;
-      if (KEYWORDS.some((kw) => line.includes(kw))) {
+      if (hasKeywordInNickLine(line)) {
         isParticipant = true;
       } else {
         for (let j = i + 1; j < lines.length; j++) {
           const nextLine = lines[j];
           if (!nextLine) continue;
           if (nextLine.includes("#")) break;
-          if (KEYWORDS.some((kw) => nextLine.includes(kw))) {
+          if (hasKeywordInNextLine(nextLine)) {
             isParticipant = true;
             break;
           }
