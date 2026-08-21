@@ -11,7 +11,7 @@ type Props = {
   teamCount: number;
   isAdmin: boolean;
   onAssignTeam: (playerId: string, teamNumber: number) => void | Promise<void>;
-  onAddToBalance: (playerId: string, slot: 1 | 2) => void;
+  onAddToBalance: (playerId: string, slot: 1 | 2 | 3) => void;
   onToggleParticipant: (playerId: string) => void | Promise<void>;
   balanceIds: Set<string>;
   onRemoveFromBalance: (playerId: string) => void;
@@ -121,6 +121,12 @@ export default function PlayerPool({ players, allPlayers, participants, teamCoun
                         className="px-2 py-1 text-xs rounded bg-gray-700 hover:bg-gray-600 text-white font-medium whitespace-nowrap"
                       >
                         밸2
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); if (!participants.has(player.id)) onToggleParticipant(player.id); onAddToBalance(player.id, 3); setSelectedPlayer(null); }}
+                        className="px-2 py-1 text-xs rounded bg-gray-700 hover:bg-gray-600 text-white font-medium whitespace-nowrap"
+                      >
+                        밸3
                       </button>
                       {Array.from({ length: teamCount }, (_, i) => i + 1).map((t) => (
                         <button

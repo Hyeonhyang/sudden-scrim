@@ -8,20 +8,22 @@ type Props = {
   players: Player[];
   balance1: (string | null)[];
   balance2: (string | null)[];
+  balance3: (string | null)[];
   teamCount: number;
   isAdmin: boolean;
-  onDropToBalance: (playerId: string, slot: 1 | 2) => void;
-  onRemoveFromBalance: (playerId: string, slot: 1 | 2) => void;
+  onDropToBalance: (playerId: string, slot: 1 | 2 | 3) => void;
+  onRemoveFromBalance: (playerId: string, slot: 1 | 2 | 3) => void;
   onAssignTeam: (playerId: string, teamNumber: number) => void | Promise<void>;
-  onFillSlot: (playerId: string, slot: 1 | 2, index: number) => void;
-  onSwapInBalance: (slot: 1 | 2, fromIndex: number, toIndex: number) => void;
-  onSwapBetweenBalance: (fromSlot: 1 | 2, fromIndex: number, toSlot: 1 | 2, toIndex: number) => void;
+  onFillSlot: (playerId: string, slot: 1 | 2 | 3, index: number) => void;
+  onSwapInBalance: (slot: 1 | 2 | 3, fromIndex: number, toIndex: number) => void;
+  onSwapBetweenBalance: (fromSlot: 1 | 2 | 3, fromIndex: number, toSlot: 1 | 2 | 3, toIndex: number) => void;
 };
 
 export default function BalanceCompare({
   players,
   balance1,
   balance2,
+  balance3,
   teamCount,
   isAdmin,
   onDropToBalance,
@@ -31,31 +33,29 @@ export default function BalanceCompare({
   onSwapInBalance,
   onSwapBetweenBalance,
 }: Props) {
-  const [selectedPlayer, setSelectedPlayer] = useState<{ id: string; slot: 1 | 2 } | null>(null);
+  const [selectedPlayer, setSelectedPlayer] = useState<{ id: string; slot: 1 | 2 | 3 } | null>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
   };
 
-  const handleDrop = (e: React.DragEvent, slot: 1 | 2) => {
+  const handleDrop = (e: React.DragEvent, slot: 1 | 2 | 3) => {
     e.preventDefault();
     const playerId = e.dataTransfer.getData("playerId");
     if (playerId && isAdmin) {
-      // 반대 밸런스에서 오는 경우: 반대편에서 제거 후 이쪽에 추가
       const otherSlot = slot === 1 ? 2 : 1;
       const otherList = slot === 1 ? balance2 : balance1;
       if (otherList.includes(playerId)) {
         onRemoveFromBalance(playerId, otherSlot);
       }
-      // 이미 같은 쪽에 있으면 무시
-      const thisList = slot === 1 ? balance1 : balance2;
+      const thisList = slot === 1 ? balance1 : slot === 2 ? balance2 : balance3;
       if (thisList.includes(playerId)) return;
       onDropToBalance(playerId, slot);
     }
   };
 
-  const handlePlayerClick = (playerId: string, slot: 1 | 2) => {
+  const handlePlayerClick = (playerId: string, slot: 1 | 2 | 3) => {
     if (!isAdmin) return;
     if (selectedPlayer?.id === playerId && selectedPlayer?.slot === slot) {
       setSelectedPlayer(null);
@@ -64,7 +64,7 @@ export default function BalanceCompare({
     }
   };
 
-  const handleMoveTo = (playerId: string, slot: 1 | 2, target: "pool" | number) => {
+  const handleMoveTo = (playerId: string, slot: 1 | 2 | 3, target: "pool" | number) => {
     if (target === "pool") {
       onRemoveFromBalance(playerId, slot);
       onAssignTeam(playerId, 0);
@@ -75,7 +75,7 @@ export default function BalanceCompare({
     setSelectedPlayer(null);
   };
 
-  const renderSlot = (slot: 1 | 2, playerIds: (string | null)[]) => {
+  const renderSlot = (slot: 1 | 2 | 3, playerIds: (string | null)[]) => {
     const slotEntries = playerIds.map((id) => id ? players.find((p) => p.id === id) || null : null);
     const activeCount = slotEntries.filter(Boolean).length;
     const totalScore = slotEntries.filter(Boolean).reduce((sum, p) => sum + (p?.tier_score ?? 0), 0);
@@ -225,6 +225,7 @@ export default function BalanceCompare({
       <div className="flex gap-3">
         {renderSlot(1, balance1)}
         {renderSlot(2, balance2)}
+        {renderSlot(3, balance3)}
       </div>
       {/* 바깥 클릭하면 팝업 닫기 */}
       {selectedPlayer && (

@@ -32,16 +32,17 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
   const [selectedDbPlayer, setSelectedDbPlayer] = useState<string | null>(null);
   const [dragOverPlayer, setDragOverPlayer] = useState<string | null>(null);
   const [teamOrders, setTeamOrders] = useState<Record<number, string[]>>({});
-  const [snaSlotsByTeam, setSnaSlotsByTeam] = useState<Record<number, number>>({ 1: 2, 2: 2, 3: 2, 4: 2 });
+  const [snaSlotsByTeam, setSnaSlotsByTeam] = useState<Record<number, number>>({ 1: 2, 2: 2, 3: 2, 4: 2, 5: 2, 6: 2 });
   // 각 팀의 스나 자리에 배치된 선수 ID
   const [teamSnaPlayers, setTeamSnaPlayers] = useState<Record<number, (string | null)[]>>({
-    1: [null, null], 2: [null, null], 3: [null, null], 4: [null, null],
+    1: [null, null], 2: [null, null], 3: [null, null], 4: [null, null], 5: [null, null], 6: [null, null],
   });
 
   const {
     participants,
     balance1,
     balance2,
+    balance3,
     toggleParticipant,
     assignTeam,
     changePosition,
@@ -122,6 +123,10 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
   const setBalance2 = (updater: (string | null)[] | ((prev: (string | null)[]) => (string | null)[])) => {
     const newVal = typeof updater === "function" ? updater(balance2) : updater;
     updateBalance(2, newVal);
+  };
+  const setBalance3 = (updater: (string | null)[] | ((prev: (string | null)[]) => (string | null)[])) => {
+    const newVal = typeof updater === "function" ? updater(balance3) : updater;
+    updateBalance(3, newVal);
   };
 
   // 팀 배치 (참가 안 됐으면 참가시키고)
@@ -322,6 +327,8 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
                   teamNum === 2 ? "bg-red-700 border-red-400 text-white" :
                   teamNum === 3 ? "bg-green-700 border-green-400 text-white" :
                   teamNum === 4 ? "bg-purple-700 border-purple-400 text-white" :
+                  teamNum === 5 ? "bg-orange-600 border-orange-400 text-white" :
+                  teamNum === 6 ? "bg-cyan-700 border-cyan-400 text-white" :
                   isParticipant ? "bg-orange-300/40 text-orange-100 border border-orange-300" :
                   "bg-gray-800 text-gray-300 border border-gray-700 hover:border-gray-500";
 
@@ -463,21 +470,19 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
         isAdmin={isAdmin}
         onAssignTeam={assignTeamAndCleanBalance}
         onAddToBalance={(playerId, slot) => {
-          if (slot === 1) {
-            if (balance2.includes(playerId)) return;
-            if (balance1.includes(playerId)) return;
-            setBalance1((prev) => [...prev, playerId]);
-          } else {
-            if (balance1.includes(playerId)) return;
-            if (balance2.includes(playerId)) return;
-            setBalance2((prev) => [...prev, playerId]);
-          }
+          const allBalances = [balance1, balance2, balance3];
+          const otherSlots = [1, 2, 3].filter((s) => s !== slot) as (1|2|3)[];
+          if (otherSlots.some((s) => allBalances[s - 1].includes(playerId))) return;
+          if (allBalances[slot - 1].includes(playerId)) return;
+          const setter = slot === 1 ? setBalance1 : slot === 2 ? setBalance2 : setBalance3;
+          setter((prev) => [...prev, playerId]);
         }}
         onToggleParticipant={toggleParticipant}
-        balanceIds={new Set([...balance1, ...balance2].filter(Boolean) as string[])}
+        balanceIds={new Set([...balance1, ...balance2, ...balance3].filter(Boolean) as string[])}
         onRemoveFromBalance={(playerId) => {
           setBalance1((prev) => cleanBalance(prev.map((id) => id === playerId ? null : id)));
           setBalance2((prev) => cleanBalance(prev.map((id) => id === playerId ? null : id)));
+          setBalance3((prev) => cleanBalance(prev.map((id) => id === playerId ? null : id)));
         }}
       />
 
@@ -486,6 +491,7 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
         players={players}
         balance1={balance1}
         balance2={balance2}
+        balance3={balance3}
         teamCount={teamCount}
         isAdmin={isAdmin}
         onDropToBalance={async (playerId, slot) => {
@@ -520,16 +526,21 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
           if (slot === 1) {
             if (balance1.includes(playerId)) return;
             setBalance1((prev) => [...prev, playerId]);
-          } else {
+          } else if (slot === 2) {
             if (balance2.includes(playerId)) return;
             setBalance2((prev) => [...prev, playerId]);
+          } else {
+            if (balance3.includes(playerId)) return;
+            setBalance3((prev) => [...prev, playerId]);
           }
         }}
         onRemoveFromBalance={(playerId, slot) => {
           if (slot === 1) {
             setBalance1((prev) => cleanBalance(prev.map((id) => id === playerId ? null : id)));
-          } else {
+          } else if (slot === 2) {
             setBalance2((prev) => cleanBalance(prev.map((id) => id === playerId ? null : id)));
+          } else {
+            setBalance3((prev) => cleanBalance(prev.map((id) => id === playerId ? null : id)));
           }
         }}
         onAssignTeam={assignTeamAndCleanBalance}
@@ -555,108 +566,68 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
             });
             await assignTeam(playerId, 0);
           }
-          if (slot === 1 && balance2.includes(playerId)) return;
-          if (slot === 2 && balance1.includes(playerId)) return;
+          if (slot === 1 && (balance2.includes(playerId) || balance3.includes(playerId))) return;
+          if (slot === 2 && (balance1.includes(playerId) || balance3.includes(playerId))) return;
+          if (slot === 3 && (balance1.includes(playerId) || balance2.includes(playerId))) return;
           if (slot === 1 && balance1.includes(playerId)) return;
           if (slot === 2 && balance2.includes(playerId)) return;
-          if (slot === 1) {
-            setBalance1((prev) => {
-              const next = [...prev];
-              // 같은 밸런스 내에서 이동이면 원래 자리 비우기
-              const existingIdx = next.indexOf(playerId);
-              if (existingIdx !== -1) next[existingIdx] = null;
-              next[index] = playerId;
-              // cleanBalance 적용
-              const cleaned: (string | null)[] = [];
-              for (let i = 0; i < next.length; i += 2) {
-                const a = next[i] ?? null;
-                const b = next[i + 1] ?? null;
-                if (a === null && b === null) continue;
-                cleaned.push(a);
-                if (i + 1 < next.length) cleaned.push(b);
-              }
-              while (cleaned.length > 0 && cleaned[cleaned.length - 1] === null) cleaned.pop();
-              return cleaned;
-            });
-          } else {
-            setBalance2((prev) => {
-              const next = [...prev];
-              const existingIdx = next.indexOf(playerId);
-              if (existingIdx !== -1) next[existingIdx] = null;
-              next[index] = playerId;
-              const cleaned: (string | null)[] = [];
-              for (let i = 0; i < next.length; i += 2) {
-                const a = next[i] ?? null;
-                const b = next[i + 1] ?? null;
-                if (a === null && b === null) continue;
-                cleaned.push(a);
-                if (i + 1 < next.length) cleaned.push(b);
-              }
-              while (cleaned.length > 0 && cleaned[cleaned.length - 1] === null) cleaned.pop();
-              return cleaned;
-            });
-          }
+          if (slot === 3 && balance3.includes(playerId)) return;
+
+          const getBalanceSetter = (s: 1|2|3) => s === 1 ? setBalance1 : s === 2 ? setBalance2 : setBalance3;
+          getBalanceSetter(slot)((prev) => {
+            const next = [...prev];
+            const existingIdx = next.indexOf(playerId);
+            if (existingIdx !== -1) next[existingIdx] = null;
+            next[index] = playerId;
+            const cleaned: (string | null)[] = [];
+            for (let i = 0; i < next.length; i += 2) {
+              const a = next[i] ?? null;
+              const b = next[i + 1] ?? null;
+              if (a === null && b === null) continue;
+              cleaned.push(a);
+              if (i + 1 < next.length) cleaned.push(b);
+            }
+            while (cleaned.length > 0 && cleaned[cleaned.length - 1] === null) cleaned.pop();
+            return cleaned;
+          });
         }}
         onSwapInBalance={(slot, fromIndex, toIndex) => {
-          if (slot === 1) {
-            setBalance1((prev) => {
-              const next = [...prev];
-              const temp = next[fromIndex];
-              next[fromIndex] = next[toIndex];
-              next[toIndex] = temp;
-              // clean: 한 줄 둘 다 null이면 제거, 뒤쪽 null 트림
-              const cleaned: (string | null)[] = [];
-              for (let i = 0; i < next.length; i += 2) {
-                const a = next[i] ?? null;
-                const b = next[i + 1] ?? null;
-                if (a === null && b === null) continue;
-                cleaned.push(a);
-                if (i + 1 < next.length) cleaned.push(b);
-              }
-              while (cleaned.length > 0 && cleaned[cleaned.length - 1] === null) cleaned.pop();
-              return cleaned;
-            });
-          } else {
-            setBalance2((prev) => {
-              const next = [...prev];
-              const temp = next[fromIndex];
-              next[fromIndex] = next[toIndex];
-              next[toIndex] = temp;
-              const cleaned: (string | null)[] = [];
-              for (let i = 0; i < next.length; i += 2) {
-                const a = next[i] ?? null;
-                const b = next[i + 1] ?? null;
-                if (a === null && b === null) continue;
-                cleaned.push(a);
-                if (i + 1 < next.length) cleaned.push(b);
-              }
-              while (cleaned.length > 0 && cleaned[cleaned.length - 1] === null) cleaned.pop();
-              return cleaned;
-            });
-          }
+          const getBalanceSetter = (s: 1|2|3) => s === 1 ? setBalance1 : s === 2 ? setBalance2 : setBalance3;
+          getBalanceSetter(slot)((prev) => {
+            const next = [...prev];
+            const temp = next[fromIndex];
+            next[fromIndex] = next[toIndex];
+            next[toIndex] = temp;
+            const cleaned: (string | null)[] = [];
+            for (let i = 0; i < next.length; i += 2) {
+              const a = next[i] ?? null;
+              const b = next[i + 1] ?? null;
+              if (a === null && b === null) continue;
+              cleaned.push(a);
+              if (i + 1 < next.length) cleaned.push(b);
+            }
+            while (cleaned.length > 0 && cleaned[cleaned.length - 1] === null) cleaned.pop();
+            return cleaned;
+          });
         }}
         onSwapBetweenBalance={(fromSlot, fromIndex, toSlot, toIndex) => {
-          // 밸1[fromIndex] ↔ 밸2[toIndex] 교체
-          const fromList = fromSlot === 1 ? [...balance1] : [...balance2];
-          const toList = toSlot === 1 ? [...balance1] : [...balance2];
+          const getList = (s: 1|2|3) => s === 1 ? [...balance1] : s === 2 ? [...balance2] : [...balance3];
+          const getSetter = (s: 1|2|3) => s === 1 ? setBalance1 : s === 2 ? setBalance2 : setBalance3;
+          const fromList = getList(fromSlot);
+          const toList = getList(toSlot);
           const fromId = fromList[fromIndex];
           const toId = toList[toIndex];
           fromList[fromIndex] = toId;
           toList[toIndex] = fromId;
-          if (fromSlot === 1) {
-            setBalance1(cleanBalance(fromList));
-            setBalance2(cleanBalance(toList));
-          } else {
-            setBalance2(cleanBalance(fromList));
-            setBalance1(cleanBalance(toList));
-          }
+          getSetter(fromSlot)(cleanBalance(fromList));
+          if (fromSlot !== toSlot) getSetter(toSlot)(cleanBalance(toList));
         }}
       />
 
       {/* 팀 설정 */}
       <div className="flex items-center gap-3 flex-wrap">
         <span className="text-sm text-gray-400">팀 수:</span>
-        {[2, 3, 4].map((n) => (
+        {[2, 3, 4, 5, 6].map((n) => (
           <button
             key={n}
             onClick={() => isAdmin && handleTeamCountChange(n)}

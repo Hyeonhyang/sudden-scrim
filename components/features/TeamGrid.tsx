@@ -30,6 +30,8 @@ const TEAM_COLORS = [
   "border-red-600 bg-red-950/30",
   "border-green-600 bg-green-950/30",
   "border-purple-600 bg-purple-950/30",
+  "border-orange-500 bg-orange-950/30",
+  "border-cyan-500 bg-cyan-950/30",
 ];
 
 const TEAM_TEXT_COLORS = [
@@ -38,6 +40,8 @@ const TEAM_TEXT_COLORS = [
   "text-red-400",
   "text-green-400",
   "text-purple-400",
+  "text-orange-400",
+  "text-cyan-400",
 ];
 
 export default function TeamGrid({
@@ -74,7 +78,7 @@ export default function TeamGrid({
   };
 
   return (
-    <div className={`grid gap-4 ${teamCount <= 2 ? "grid-cols-1 md:grid-cols-2" : teamCount === 3 ? "grid-cols-1 md:grid-cols-3" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-4"}`}>
+    <div className={`grid gap-4 ${teamCount <= 2 ? "grid-cols-1 md:grid-cols-2" : teamCount === 3 ? "grid-cols-1 md:grid-cols-3" : teamCount <= 4 ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-4" : teamCount === 5 ? "grid-cols-1 md:grid-cols-3 lg:grid-cols-5" : "grid-cols-1 md:grid-cols-3 lg:grid-cols-6"}`}>
       {Array.from({ length: teamCount }, (_, i) => i + 1).map((teamNum) => {
         const stats = getTeamStats(teamNum);
         const teamPlayersRaw: Player[] = [];

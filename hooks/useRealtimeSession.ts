@@ -14,6 +14,7 @@ export function useRealtimeSession(sessionId: string | null, players: Player[]) 
   const [participants, setParticipants] = useState<Map<string, ParticipantInfo>>(new Map());
   const [balance1, setBalance1] = useState<(string | null)[]>([]);
   const [balance2, setBalance2] = useState<(string | null)[]>([]);
+  const [balance3, setBalance3] = useState<(string | null)[]>([]);
 
   // DB에서 초기 로드
   const loadSessionPlayers = useCallback(async () => {
@@ -47,8 +48,10 @@ export function useRealtimeSession(sessionId: string | null, players: Player[]) 
     if (data) {
       const b1 = data.find((d: { slot: number }) => d.slot === 1);
       const b2 = data.find((d: { slot: number }) => d.slot === 2);
+      const b3 = data.find((d: { slot: number }) => d.slot === 3);
       setBalance1((b1?.player_ids ?? []).map((id: string) => id === "__empty__" ? null : id));
       setBalance2((b2?.player_ids ?? []).map((id: string) => id === "__empty__" ? null : id));
+      setBalance3((b3?.player_ids ?? []).map((id: string) => id === "__empty__" ? null : id));
     }
   }, [sessionId]);
 
@@ -152,45 +155,32 @@ export function useRealtimeSession(sessionId: string | null, players: Player[]) 
     if (teamNumber > 0) {
       const hasInB1 = balance1.includes(playerId);
       const hasInB2 = balance2.includes(playerId);
-      if (hasInB1) {
-        const newB1 = balance1.map((id) => id === playerId ? null : id);
-        // 한 줄(2칸)이 둘 다 null이면 제거, 뒤쪽 null 트림
+      const hasInB3 = balance3.includes(playerId);
+
+      const cleanBal = async (bal: (string | null)[], slot: 1|2|3, setter: (v: (string|null)[]) => void) => {
+        const newB = bal.map((id) => id === playerId ? null : id);
         const cleaned: (string | null)[] = [];
-        for (let i = 0; i < newB1.length; i += 2) {
-          const a = newB1[i] ?? null;
-          const b = newB1[i + 1] ?? null;
+        for (let i = 0; i < newB.length; i += 2) {
+          const a = newB[i] ?? null;
+          const b = newB[i + 1] ?? null;
           if (a === null && b === null) continue;
           cleaned.push(a);
-          if (i + 1 < newB1.length) cleaned.push(b);
+          if (i + 1 < newB.length) cleaned.push(b);
         }
         while (cleaned.length > 0 && cleaned[cleaned.length - 1] === null) cleaned.pop();
-        const dbArray1 = cleaned.map((id) => id ?? "__empty__");
+        const dbArray = cleaned.map((id) => id ?? "__empty__");
         await supabase.from("session_balance").upsert(
-          { session_id: sessionId, slot: 1, player_ids: dbArray1, updated_at: new Date().toISOString() },
+          { session_id: sessionId, slot, player_ids: dbArray, updated_at: new Date().toISOString() },
           { onConflict: "session_id,slot" }
         );
-        setBalance1(cleaned);
-      }
-      if (hasInB2) {
-        const newB2 = balance2.map((id) => id === playerId ? null : id);
-        const cleaned: (string | null)[] = [];
-        for (let i = 0; i < newB2.length; i += 2) {
-          const a = newB2[i] ?? null;
-          const b = newB2[i + 1] ?? null;
-          if (a === null && b === null) continue;
-          cleaned.push(a);
-          if (i + 1 < newB2.length) cleaned.push(b);
-        }
-        while (cleaned.length > 0 && cleaned[cleaned.length - 1] === null) cleaned.pop();
-        const dbArray2 = cleaned.map((id) => id ?? "__empty__");
-        await supabase.from("session_balance").upsert(
-          { session_id: sessionId, slot: 2, player_ids: dbArray2, updated_at: new Date().toISOString() },
-          { onConflict: "session_id,slot" }
-        );
-        setBalance2(cleaned);
-      }
+        setter(cleaned);
+      };
+
+      if (hasInB1) await cleanBal(balance1, 1, setBalance1);
+      if (hasInB2) await cleanBal(balance2, 2, setBalance2);
+      if (hasInB3) await cleanBal(balance3, 3, setBalance3);
     }
-  }, [sessionId, balance1, balance2]);
+  }, [sessionId, balance1, balance2, balance3]);
 
   const changePosition = useCallback(async (playerId: string, position: Position) => {
     if (!sessionId) return;
@@ -259,7 +249,7 @@ export function useRealtimeSession(sessionId: string | null, players: Player[]) 
     }
   }, [sessionId, participants]);
 
-  const updateBalance = useCallback(async (slot: 1 | 2, playerIds: (string | null)[]) => {
+  const updateBalance = useCallback(async (slot: 1 | 2 | 3, playerIds: (string | null)[]) => {
     if (!sessionId) return;
     const supabase = createClient();
     // null을 "__empty__"로 대체해서 DB에 위치 보존
@@ -272,7 +262,8 @@ export function useRealtimeSession(sessionId: string | null, players: Player[]) 
       );
     if (!error) {
       if (slot === 1) setBalance1(playerIds);
-      else setBalance2(playerIds);
+      else if (slot === 2) setBalance2(playerIds);
+      else setBalance3(playerIds);
     }
   }, [sessionId]);
 
@@ -280,6 +271,7 @@ export function useRealtimeSession(sessionId: string | null, players: Player[]) 
     participants,
     balance1,
     balance2,
+    balance3,
     toggleParticipant,
     assignTeam,
     changePosition,
