@@ -525,12 +525,18 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
           }
           if (slot === 1) {
             if (balance1.includes(playerId)) return;
+            setBalance2((prev) => cleanBalance(prev.map((id) => id === playerId ? null : id)));
+            setBalance3((prev) => cleanBalance(prev.map((id) => id === playerId ? null : id)));
             setBalance1((prev) => [...prev, playerId]);
           } else if (slot === 2) {
             if (balance2.includes(playerId)) return;
+            setBalance1((prev) => cleanBalance(prev.map((id) => id === playerId ? null : id)));
+            setBalance3((prev) => cleanBalance(prev.map((id) => id === playerId ? null : id)));
             setBalance2((prev) => [...prev, playerId]);
           } else {
             if (balance3.includes(playerId)) return;
+            setBalance1((prev) => cleanBalance(prev.map((id) => id === playerId ? null : id)));
+            setBalance2((prev) => cleanBalance(prev.map((id) => id === playerId ? null : id)));
             setBalance3((prev) => [...prev, playerId]);
           }
         }}

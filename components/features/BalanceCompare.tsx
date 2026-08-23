@@ -44,10 +44,12 @@ export default function BalanceCompare({
     e.preventDefault();
     const playerId = e.dataTransfer.getData("playerId");
     if (playerId && isAdmin) {
-      const otherSlot = slot === 1 ? 2 : 1;
-      const otherList = slot === 1 ? balance2 : balance1;
-      if (otherList.includes(playerId)) {
-        onRemoveFromBalance(playerId, otherSlot);
+      // 다른 밸런스에 있으면 제거
+      const allBalances: [(string|null)[], 1|2|3][] = [[balance1, 1], [balance2, 2], [balance3, 3]];
+      for (const [bal, s] of allBalances) {
+        if (s !== slot && bal.includes(playerId)) {
+          onRemoveFromBalance(playerId, s);
+        }
       }
       const thisList = slot === 1 ? balance1 : slot === 2 ? balance2 : balance3;
       if (thisList.includes(playerId)) return;
