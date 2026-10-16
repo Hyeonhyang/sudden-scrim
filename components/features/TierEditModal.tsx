@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Player } from "@/types";
 import { TIERS, POSITIONS, Position } from "@/lib/tiers";
+import TierSelect from "@/components/ui/TierSelect";
 import { updatePlayerTier, updatePlayerPosition, deletePlayer } from "@/actions/players";
 import { createClient } from "@/lib/supabase/client";
 
@@ -125,17 +126,10 @@ export default function TierEditModal({ players, onClose, onUpdated, defaultPlay
             </div>
             <div>
               <label className="text-xs text-gray-400 mb-1 block">티어</label>
-              <select
+              <TierSelect
                 value={newTierScore ?? selectedPlayer.tier_score}
-                onChange={(e) => setNewTierScore(Number(e.target.value))}
-                className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:outline-none focus:border-indigo-500"
-              >
-                {TIERS.map((tier) => (
-                  <option key={tier.score} value={tier.score}>
-                    {tier.display} {tier.score === selectedPlayer.tier_score ? "(현재)" : ""}
-                  </option>
-                ))}
-              </select>
+                onChange={setNewTierScore}
+              />
             </div>
             <div>
               <label className="text-xs text-gray-400 mb-1 block">포지션</label>

@@ -314,7 +314,7 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
         <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
           {playersByTier.map(({ tier, players: tierPlayers }) => (
             <div key={tier.score} className="flex items-start gap-2">
-              <span className="text-xs font-bold text-gray-500 w-20 shrink-0 pt-0.5">
+              <span className={`text-xs font-bold w-20 shrink-0 pt-0.5 ${tier.color}`}>
                 {tier.display}
               </span>
               <div className="flex flex-wrap gap-1.5 flex-1">

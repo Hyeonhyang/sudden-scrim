@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Player } from "@/types";
-import { Position, POSITIONS, POSITION_LABELS, getTierDisplay } from "@/lib/tiers";
+import { Position, POSITIONS, POSITION_LABELS, getTierDisplay, getTierColor } from "@/lib/tiers";
 
 type Props = {
   players: Player[];
@@ -184,7 +184,7 @@ export default function TeamGrid({
                       className="flex items-center justify-between px-2 py-1.5 rounded bg-gray-800/60 text-sm cursor-grab active:cursor-grabbing"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-gray-500">{getTierDisplay(player.tier_label)}</span>
+                        <span className={`text-[10px] ${getTierColor(player.tier_label)}`}>{getTierDisplay(player.tier_label)}</span>
                         <span className="font-medium">{player.nickname}</span>
                       </div>
                       <div className="flex items-center gap-1">
@@ -306,7 +306,7 @@ export default function TeamGrid({
                         className="flex items-center justify-between px-2 py-1.5 rounded bg-gray-800/60 text-sm cursor-grab active:cursor-grabbing"
                       >
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] text-gray-500">{getTierDisplay(player.tier_label)}</span>
+                          <span className={`text-[10px] ${getTierColor(player.tier_label)}`}>{getTierDisplay(player.tier_label)}</span>
                           <span className="font-medium">{player.nickname}</span>
                         </div>
                         <div className="flex items-center gap-1">

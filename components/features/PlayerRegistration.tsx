@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createPlayer } from "@/actions/players";
 import { TIERS, POSITIONS, Position } from "@/lib/tiers";
+import TierSelect from "@/components/ui/TierSelect";
 
 type Props = {
   onClose: () => void;
@@ -49,17 +50,10 @@ export default function PlayerRegistration({ onClose, onRegistered }: Props) {
             className="px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500"
             autoFocus
           />
-          <select
+          <TierSelect
             value={tierScore}
-            onChange={(e) => setTierScore(Number(e.target.value))}
-            className="px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 text-white focus:outline-none focus:border-indigo-500"
-          >
-            {TIERS.map((tier) => (
-              <option key={tier.score} value={tier.score}>
-                {tier.display}
-              </option>
-            ))}
-          </select>
+            onChange={setTierScore}
+          />
           <select
             value={position}
             onChange={(e) => setPosition(e.target.value as Position)}

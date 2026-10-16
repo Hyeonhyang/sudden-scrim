@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Player } from "@/types";
-import { Position, getTierDisplay } from "@/lib/tiers";
+import { Position, getTierDisplay, getTierColor } from "@/lib/tiers";
 
 type Props = {
   players: Player[];
@@ -153,7 +153,7 @@ export default function BalanceCompare({
                           : "bg-gray-800 border-gray-600 text-gray-200 hover:border-gray-500"
                       } ${isAdmin ? "active:scale-95" : ""}`}
                     >
-                      <span className="opacity-60 text-xs">{getTierDisplay(player.tier_label)}</span>
+                      <span className={`opacity-60 text-xs ${getTierColor(player.tier_label)}`}>{getTierDisplay(player.tier_label)}</span>
                       <span className="font-medium">{player.nickname}</span>
                       <span className="opacity-60 text-xs">{player.position}</span>
                     </button>
