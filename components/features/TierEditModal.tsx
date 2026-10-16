@@ -65,8 +65,8 @@ export default function TierEditModal({ game, players, onClose, onUpdated, defau
       await updatePlayerTier(selectedPlayer.id, newTierScore, tier.label);
     }
 
-    // 포지션 변경
-    if (newPosition !== selectedPlayer.position) {
+    // 포지션 변경 (서든어택만)
+    if (!isPubg && newPosition !== selectedPlayer.position) {
       await updatePlayerPosition(selectedPlayer.id, newPosition);
     }
 

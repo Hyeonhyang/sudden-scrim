@@ -72,6 +72,11 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
     setTeamSnaPlayers({ 1: [null, null], 2: [null, null], 3: [null, null], 4: [null, null], 5: [null, null], 6: [null, null] });
     setSnaSlotsByTeam({ 1: 2, 2: 2, 3: 2, 4: 2, 5: 2, 6: 2 });
     
+    // 밸런스 초기화
+    updateBalance(1, []);
+    updateBalance(2, []);
+    updateBalance(3, []);
+    
     // 새 게임의 선수 목록 로드
     const result = await getPlayers(newGame);
     if (result.data) setPlayers(result.data);
