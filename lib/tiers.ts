@@ -43,10 +43,14 @@ export const TIERS: TierInfo[] = [
 
 // 배그 전용 티어 (1~5티어, score도 동일하게 사용)
 export const PUBG_TIERS: TierInfo[] = [
-  { label: "1티어", score: 5, display: "1티어", color: "text-yellow-400" },
-  { label: "2티어", score: 4, display: "2티어", color: "text-blue-400" },
-  { label: "3티어", score: 3, display: "3티어", color: "text-green-400" },
-  { label: "4티어", score: 2, display: "4티어", color: "text-gray-300" },
+  { label: "1티어", score: 9, display: "1티어", color: "text-yellow-400" },
+  { label: "1.5티어", score: 8, display: "1.5티어", color: "text-yellow-300" },
+  { label: "2티어", score: 7, display: "2티어", color: "text-blue-400" },
+  { label: "2.5티어", score: 6, display: "2.5티어", color: "text-blue-300" },
+  { label: "3티어", score: 5, display: "3티어", color: "text-green-400" },
+  { label: "3.5티어", score: 4, display: "3.5티어", color: "text-green-300" },
+  { label: "4티어", score: 3, display: "4티어", color: "text-gray-300" },
+  { label: "4.5티어", score: 2, display: "4.5티어", color: "text-gray-400" },
   { label: "5티어", score: 1, display: "5티어", color: "text-gray-500" },
 ];
 
