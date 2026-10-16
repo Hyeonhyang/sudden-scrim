@@ -34,8 +34,8 @@ export default function Home() {
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-4 gap-6 text-[15px]">
       <div className="text-center">
-        <h1 className="text-4xl font-extrabold tracking-tight">⚔️ SA 내전 팀짜기</h1>
-        <p className="text-gray-400 mt-2">서든어택 내전 팀 편성 도구</p>
+        <h1 className="text-4xl font-extrabold tracking-tight">⚔️ 내전 팀짜기 도구</h1>
+        <p className="text-gray-400 mt-2">서든어택 · 배그 내전 팀 편성</p>
       </div>
 
       <form onSubmit={handleLogin} className="flex flex-col gap-3 w-full max-w-sm">

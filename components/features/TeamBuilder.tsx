@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Player } from "@/types";
 import { getPlayers, updatePlayerTier, reorderPlayers } from "@/actions/players";
-import { TIERS, POSITION_LABELS, Position, getTierDisplay } from "@/lib/tiers";
+import { TIERS, PUBG_TIERS, getTiersByGame, POSITION_LABELS, Position, getTierDisplay, Game } from "@/lib/tiers";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeSession } from "@/hooks/useRealtimeSession";
 import PlayerPool from "./PlayerPool";
@@ -21,6 +21,7 @@ type Props = {
 };
 
 export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
+  const [game, setGame] = useState<Game>("suddenattack");
   const [players, setPlayers] = useState<Player[]>([]);
   const [teamCount, setTeamCount] = useState(2);
   const [showRegister, setShowRegister] = useState(false);
@@ -33,10 +34,14 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
   const [dragOverPlayer, setDragOverPlayer] = useState<string | null>(null);
   const [teamOrders, setTeamOrders] = useState<Record<number, string[]>>({});
   const [snaSlotsByTeam, setSnaSlotsByTeam] = useState<Record<number, number>>({ 1: 2, 2: 2, 3: 2, 4: 2, 5: 2, 6: 2 });
-  // 각 팀의 스나 자리에 배치된 선수 ID
   const [teamSnaPlayers, setTeamSnaPlayers] = useState<Record<number, (string | null)[]>>({
     1: [null, null], 2: [null, null], 3: [null, null], 4: [null, null], 5: [null, null], 6: [null, null],
   });
+
+  const currentTiers = getTiersByGame(game);
+  const isPubg = game === "pubg";
+  const maxTeams = isPubg ? 8 : 6;
+  const teamSizes = isPubg ? [2, 3, 4, 5, 6, 7, 8] : [2, 3, 4, 5, 6];
 
   const {
     participants,
@@ -53,9 +58,24 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
   } = useRealtimeSession(sessionId, players);
 
   const loadPlayers = useCallback(async () => {
-    const result = await getPlayers();
+    const result = await getPlayers(game);
     if (result.data) setPlayers(result.data);
-  }, []);
+  }, [game]);
+
+  // 게임 전환 핸들러
+  const handleGameChange = async (newGame: Game) => {
+    setGame(newGame);
+    setSessionId(null);
+    setPlayers([]);
+    setTeamCount(2);
+    setTeamOrders({});
+    setTeamSnaPlayers({ 1: [null, null], 2: [null, null], 3: [null, null], 4: [null, null], 5: [null, null], 6: [null, null] });
+    setSnaSlotsByTeam({ 1: 2, 2: 2, 3: 2, 4: 2, 5: 2, 6: 2 });
+    
+    // 새 게임의 선수 목록 로드
+    const result = await getPlayers(newGame);
+    if (result.data) setPlayers(result.data);
+  };
 
   // 세션 생성 또는 기존 세션 로드
   const initSession = useCallback(async () => {
@@ -64,6 +84,7 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
       .from("sessions")
       .select("*")
       .eq("status", "drafting")
+      .eq("game", game)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -74,14 +95,14 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
     } else if (isAdmin) {
       const { data: newSession } = await supabase
         .from("sessions")
-        .insert({ name: "내전", team_count: 2 })
+        .insert({ name: "내전", team_count: 2, game })
         .select()
         .single();
       if (newSession) {
         setSessionId(newSession.id);
       }
     }
-  }, [isAdmin]);
+  }, [isAdmin, game]);
 
   useEffect(() => {
     loadPlayers();
@@ -184,6 +205,7 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
         return info && info.teamNumber === t;
       });
       const names = teamPlayers.map((p) => {
+        if (isPubg) return p.nickname;
         const info = participants.get(p.id)!;
         const pos = info.sessionPosition || p.position;
         return `${p.nickname}(${pos})`;
@@ -210,7 +232,7 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
   );
 
   // 티어별 그룹핑 (사람 있는 티어만)
-  const playersByTier = TIERS.filter((tier) =>
+  const playersByTier = currentTiers.filter((tier) =>
     filteredPlayers.some((p) => p.tier_score === tier.score)
   ).map((tier) => ({
     tier,
@@ -227,7 +249,28 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
     <div className="min-h-screen p-4 md:p-6 max-w-7xl mx-auto flex flex-col gap-5">
       {/* 헤더 */}
       <header className="flex items-center justify-between flex-wrap gap-2">
-        <h1 className="text-2xl font-extrabold">⚔️ SA 내전 팀짜기</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-extrabold">⚔️ {isPubg ? "배그" : "SA"} 내전 팀짜기</h1>
+          {/* 게임 전환 버튼 */}
+          <div className="flex rounded-lg overflow-hidden border border-gray-700">
+            <button
+              onClick={() => handleGameChange("suddenattack")}
+              className={`px-3 py-1 text-sm font-semibold transition-colors ${
+                game === "suddenattack" ? "bg-indigo-600 text-white" : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+              }`}
+            >
+              서든
+            </button>
+            <button
+              onClick={() => handleGameChange("pubg")}
+              className={`px-3 py-1 text-sm font-semibold transition-colors ${
+                game === "pubg" ? "bg-orange-600 text-white" : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+              }`}
+            >
+              배그
+            </button>
+          </div>
+        </div>
         <div className="flex gap-2 items-center">
           {!isAdmin && (
             <span className="text-xs text-yellow-400 bg-yellow-900/30 px-2 py-0.5 rounded">
@@ -383,7 +426,7 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
                       } ${dragOverPlayer === player.id ? "ring-2 ring-yellow-400" : ""} ${!isAdmin && "cursor-default"}`}
                     >
                       <span>{player.nickname}</span>
-                      <span className="opacity-60">{player.position}</span>
+                      {!isPubg && <span className="opacity-60">{player.position}</span>}
                     </button>
 
                     {/* 클릭 시 목적지 선택 팝업 */}
@@ -468,6 +511,7 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
         participants={participants}
         teamCount={teamCount}
         isAdmin={isAdmin}
+        game={game}
         onAssignTeam={assignTeamAndCleanBalance}
         onAddToBalance={(playerId, slot) => {
           const allBalances = [balance1, balance2, balance3];
@@ -494,6 +538,7 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
         balance3={balance3}
         teamCount={teamCount}
         isAdmin={isAdmin}
+        game={game}
         onDropToBalance={async (playerId, slot) => {
           // 참가 안 된 선수면 먼저 참가시키기
           if (!participants.has(playerId)) {
@@ -633,7 +678,7 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
       {/* 팀 설정 */}
       <div className="flex items-center gap-3 flex-wrap">
         <span className="text-sm text-gray-400">팀 수:</span>
-        {[2, 3, 4, 5, 6].map((n) => (
+        {teamSizes.map((n) => (
           <button
             key={n}
             onClick={() => isAdmin && handleTeamCountChange(n)}
@@ -680,6 +725,8 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
         participants={participants}
         teamCount={teamCount}
         isAdmin={isAdmin}
+        isPubg={isPubg}
+        game={game}
         onAssignTeam={assignTeamAndCleanBalance}
         onChangePosition={changePosition}
         getTeamStats={getTeamStats}
@@ -700,7 +747,7 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
         teamOrders={teamOrders}
         snaSlotsByTeam={snaSlotsByTeam}
         teamSnaPlayers={teamSnaPlayers}
-        onChangeSnaSlots={isAdmin ? (teamNum, count) => {
+        onChangeSnaSlots={isAdmin && !isPubg ? (teamNum, count) => {
           setSnaSlotsByTeam((prev) => ({ ...prev, [teamNum]: count }));
           setTeamSnaPlayers((prev) => {
             const current = prev[teamNum] || [];
@@ -711,7 +758,7 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
             }
           });
         } : undefined}
-        onSortByTier={isAdmin ? (teamNum) => {
+        onSortByTier={isAdmin && !isPubg ? (teamNum) => {
           // 라이플 선수만 티어순 정렬
           const snaIds = new Set((teamSnaPlayers[teamNum] || []).filter(Boolean) as string[]);
           const teamPlayersAll = players.filter((p) => {
@@ -721,7 +768,7 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
           const sorted = [...teamPlayersAll].sort((a, b) => b.tier_score - a.tier_score);
           setTeamOrders((prev) => ({ ...prev, [teamNum]: sorted.map((p) => p.id) }));
         } : undefined}
-        onDropToSna={isAdmin ? (teamNum, slotIdx, playerId) => {
+        onDropToSna={isAdmin && !isPubg ? (teamNum, slotIdx, playerId) => {
           // 참가 안 됐으면 참가시키고 팀 배치
           if (!participants.has(playerId)) {
             toggleParticipant(playerId).then(() => assignTeam(playerId, teamNum));
@@ -741,7 +788,7 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
             return { ...prev, [teamNum]: current };
           });
         } : undefined}
-        onDropToRifle={isAdmin ? async (teamNum, playerId) => {
+        onDropToRifle={isAdmin && !isPubg ? async (teamNum, playerId) => {
           // 참가 안 됐으면 참가시키고 팀 배치
           if (!participants.has(playerId)) {
             await toggleParticipant(playerId);
@@ -755,7 +802,7 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
             return { ...prev, [teamNum]: current };
           });
         } : undefined}
-        onRemoveSna={isAdmin ? (teamNum, slotIdx) => {
+        onRemoveSna={isAdmin && !isPubg ? (teamNum, slotIdx) => {
           const snaList = teamSnaPlayers[teamNum] || [];
           const playerId = snaList[slotIdx];
           // 스나에서 빼서 풀로
@@ -768,20 +815,21 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
             assignTeamAndCleanBalance(playerId, 0);
           }
         } : undefined}
-        onReorderRifle={isAdmin ? (teamNum, newOrder) => {
+        onReorderRifle={isAdmin && !isPubg ? (teamNum, newOrder) => {
           setTeamOrders((prev) => ({ ...prev, [teamNum]: newOrder }));
         } : undefined}
       />
 
-      {/* 맵 선택 */}
-      <MapPicker />
+      {/* 맵 선택 - 서든만 */}
+      {!isPubg && <MapPicker />}
 
-      {/* 룰 */}
-      <RulesBox isAdmin={isAdmin} />
+      {/* 룰 - 게임별 */}
+      <RulesBox isAdmin={isAdmin} game={game} />
 
       {/* 모달: 티어 수정 */}
       {showTierEdit && (
         <TierEditModal
+          game={game}
           players={players}
           onClose={() => { setShowTierEdit(false); setEditTargetPlayer(undefined); }}
           onUpdated={loadPlayers}
@@ -801,6 +849,7 @@ export default function TeamBuilder({ isAdmin, onGoHome }: Props) {
       {/* 모달: 선수 등록 */}
       {showRegister && (
         <PlayerRegistration
+          game={game}
           onClose={() => setShowRegister(false)}
           onRegistered={loadPlayers}
         />

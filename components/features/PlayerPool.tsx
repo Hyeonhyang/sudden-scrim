@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Player } from "@/types";
-import { Position, TIERS } from "@/lib/tiers";
+import { Position, getTiersByGame, Game } from "@/lib/tiers";
 
 type Props = {
   players: Player[]; // 풀에 있는 선수들만
@@ -10,6 +10,7 @@ type Props = {
   participants: Map<string, { teamNumber: number; sessionPosition: Position | null }>;
   teamCount: number;
   isAdmin: boolean;
+  game?: Game;
   onAssignTeam: (playerId: string, teamNumber: number) => void | Promise<void>;
   onAddToBalance: (playerId: string, slot: 1 | 2 | 3) => void;
   onToggleParticipant: (playerId: string) => void | Promise<void>;
@@ -17,8 +18,10 @@ type Props = {
   onRemoveFromBalance: (playerId: string) => void;
 };
 
-export default function PlayerPool({ players, allPlayers, participants, teamCount, isAdmin, onAssignTeam, onAddToBalance, onToggleParticipant, balanceIds, onRemoveFromBalance }: Props) {
+export default function PlayerPool({ players, allPlayers, participants, teamCount, isAdmin, game = "suddenattack", onAssignTeam, onAddToBalance, onToggleParticipant, balanceIds, onRemoveFromBalance }: Props) {
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
+
+  const currentTiers = getTiersByGame(game);
 
   const handleDragStart = (e: React.DragEvent, playerId: string) => {
     e.dataTransfer.setData("playerId", playerId);
@@ -53,7 +56,7 @@ export default function PlayerPool({ players, allPlayers, participants, teamCoun
   };
 
   // 티어별 그룹화
-  const playersByTier = TIERS.filter((tier) =>
+  const playersByTier = currentTiers.filter((tier) =>
     players.some((p) => p.tier_score === tier.score)
   ).map((tier) => ({
     tier,

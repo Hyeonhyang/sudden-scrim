@@ -2,17 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { Game } from "@/lib/tiers";
 
 type Props = {
   isAdmin: boolean;
+  game: Game;
 };
 
-export default function RulesBox({ isAdmin }: Props) {
+export default function RulesBox({ isAdmin, game }: Props) {
   const [rules, setRules] = useState("");
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+
+  const rulesKey = `rules_${game}`;
 
   // 로드
   useEffect(() => {
@@ -21,12 +25,13 @@ export default function RulesBox({ isAdmin }: Props) {
       const { data } = await supabase
         .from("app_config")
         .select("value")
-        .eq("key", "rules")
-        .single();
+        .eq("key", rulesKey)
+        .maybeSingle();
       if (data) setRules(data.value);
+      else setRules("");
     };
     load();
-  }, []);
+  }, [rulesKey]);
 
   const handleEdit = () => {
     setDraft(rules);
@@ -37,10 +42,27 @@ export default function RulesBox({ isAdmin }: Props) {
   const handleSave = async () => {
     setSaving(true);
     const supabase = createClient();
-    const { error } = await supabase
+    
+    // 기존 레코드 확인
+    const { data: existing } = await supabase
       .from("app_config")
-      .update({ value: draft })
-      .eq("key", "rules");
+      .select("key")
+      .eq("key", rulesKey)
+      .maybeSingle();
+
+    let error;
+    if (existing) {
+      // 업데이트
+      ({ error } = await supabase
+        .from("app_config")
+        .update({ value: draft })
+        .eq("key", rulesKey));
+    } else {
+      // 새로 삽입
+      ({ error } = await supabase
+        .from("app_config")
+        .insert({ key: rulesKey, value: draft }));
+    }
 
     if (error) {
       setMessage("저장 실패");

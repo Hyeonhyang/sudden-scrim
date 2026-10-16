@@ -5,7 +5,7 @@ INSERT INTO players (nickname, tier_score, tier_label, position) VALUES
 -- 별3 (tier_score: 20)
 INSERT INTO players (nickname, tier_score, tier_label, position) VALUES
 ('파이리', 20, '별3', 'S'),
-('밋기뉴', 20, '별3', 'S'),
+('밍기뉴', 20, '별3', 'S'),
 ('영웅', 20, '별3', 'S');
 
 -- 별1 (tier_score: 18)
@@ -28,7 +28,7 @@ INSERT INTO players (nickname, tier_score, tier_label, position) VALUES
 ('새벽이', 17, '1티어', 'SM'),
 ('밀크박스', 17, '1티어', 'RM'),
 ('seven', 17, '1티어', 'S'),
-('삼송곤', 17, '1티어', 'RM'),
+('샴손곰', 17, '1티어', 'RM'),
 ('차군', 17, '1티어', 'R'),
 ('Lize', 17, '1티어', 'SM'),
 ('태희', 17, '1티어', 'M'),
@@ -65,7 +65,7 @@ INSERT INTO players (nickname, tier_score, tier_label, position) VALUES
 ('진도깨', 11, '2.5티어', 'R'),
 ('물대포', 11, '2.5티어', 'R'),
 ('젓가락질', 11, '2.5티어', 'R'),
-('우성', 11, '2.5티어', 'R'),
+('우섬', 11, '2.5티어', 'R'),
 ('나만바줘', 11, '2.5티어', 'R'),
 ('Sincerely', 11, '2.5티어', 'S'),
 ('강남', 11, '2.5티어', 'M');
@@ -84,7 +84,7 @@ INSERT INTO players (nickname, tier_score, tier_label, position) VALUES
 INSERT INTO players (nickname, tier_score, tier_label, position) VALUES
 ('용남', 8, '3.25티어', 'R'),
 ('인태', 8, '3.25티어', 'R'),
-('뜰또리', 8, '3.25티어', 'R');
+('똘또리', 8, '3.25티어', 'R');
 
 -- 3.5티어 (tier_score: 7)
 INSERT INTO players (nickname, tier_score, tier_label, position) VALUES
@@ -106,7 +106,7 @@ INSERT INTO players (nickname, tier_score, tier_label, position) VALUES
 -- 4.5티어 (tier_score: 3)
 INSERT INTO players (nickname, tier_score, tier_label, position) VALUES
 ('러쉬', 3, '4.5티어', 'R'),
-('망룡', 3, '4.5티어', 'R');
+('망믕', 3, '4.5티어', 'R');
 
 -- 5티어 (tier_score: 1)
 INSERT INTO players (nickname, tier_score, tier_label, position) VALUES

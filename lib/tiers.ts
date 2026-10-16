@@ -2,8 +2,10 @@ export type TierInfo = {
   label: string;
   score: number;
   display: string;
-  color: string; // Tailwind 텍스트 색상 클래스
+  color: string;
 };
+
+export type Game = "suddenattack" | "pubg";
 
 export const TIERS: TierInfo[] = [
   // 빨간별 (최상위)
@@ -39,6 +41,19 @@ export const TIERS: TierInfo[] = [
   { label: "5티어",    score: 1,  display: "5티어",    color: "text-gray-500" },
 ];
 
+// 배그 전용 티어 (1~5티어, score도 동일하게 사용)
+export const PUBG_TIERS: TierInfo[] = [
+  { label: "1티어", score: 5, display: "1티어", color: "text-yellow-400" },
+  { label: "2티어", score: 4, display: "2티어", color: "text-blue-400" },
+  { label: "3티어", score: 3, display: "3티어", color: "text-green-400" },
+  { label: "4티어", score: 2, display: "4티어", color: "text-gray-300" },
+  { label: "5티어", score: 1, display: "5티어", color: "text-gray-500" },
+];
+
+export function getTiersByGame(game: Game): TierInfo[] {
+  return game === "pubg" ? PUBG_TIERS : TIERS;
+}
+
 export const POSITIONS = ["S", "R", "M", "SM", "RM"] as const;
 export type Position = (typeof POSITIONS)[number];
 
@@ -50,20 +65,24 @@ export const POSITION_LABELS: Record<Position, string> = {
   RM: "라이플/멀티",
 };
 
-export function getTierByScore(score: number): TierInfo | undefined {
-  return TIERS.find((t) => t.score === score);
+export function getTierByScore(score: number, game: Game = "suddenattack"): TierInfo | undefined {
+  const tiers = getTiersByGame(game);
+  return tiers.find((t) => t.score === score);
 }
 
-export function getTierByLabel(label: string): TierInfo | undefined {
-  return TIERS.find((t) => t.label === label);
+export function getTierByLabel(label: string, game: Game = "suddenattack"): TierInfo | undefined {
+  const tiers = getTiersByGame(game);
+  return tiers.find((t) => t.label === label);
 }
 
-export function getTierDisplay(tierLabel: string): string {
-  const tier = TIERS.find((t) => t.label === tierLabel);
+export function getTierDisplay(tierLabel: string, game: Game = "suddenattack"): string {
+  const tiers = getTiersByGame(game);
+  const tier = tiers.find((t) => t.label === tierLabel);
   return tier?.display ?? tierLabel;
 }
 
-export function getTierColor(tierLabel: string): string {
-  const tier = TIERS.find((t) => t.label === tierLabel);
+export function getTierColor(tierLabel: string, game: Game = "suddenattack"): string {
+  const tiers = getTiersByGame(game);
+  const tier = tiers.find((t) => t.label === tierLabel);
   return tier?.color ?? "text-gray-400";
 }

@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { TIERS, TierInfo } from "@/lib/tiers";
+import { getTiersByGame, TierInfo, Game } from "@/lib/tiers";
 
 type Props = {
-  value: number; // tier_score
+  game?: Game;
+  value: number;
   onChange: (score: number) => void;
   className?: string;
 };
 
-export default function TierSelect({ value, onChange, className = "" }: Props) {
+export default function TierSelect({ game = "suddenattack", value, onChange, className = "" }: Props) {
+  const TIERS = getTiersByGame(game);
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);

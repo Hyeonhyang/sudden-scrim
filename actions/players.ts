@@ -2,18 +2,19 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { isAuthenticated } from "@/lib/auth";
-import { Position } from "@/lib/tiers";
+import { Position, Game } from "@/lib/tiers";
 import { Player } from "@/types";
 
 type ActionResult<T = null> =
   | { data: T; error: null }
   | { data: null; error: string };
 
-export async function getPlayers(): Promise<ActionResult<Player[]>> {
+export async function getPlayers(game: Game = "suddenattack"): Promise<ActionResult<Player[]>> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("players")
     .select("*")
+    .eq("game", game)
     .order("tier_score", { ascending: false })
     .order("sort_order", { ascending: true });
 
@@ -25,7 +26,8 @@ export async function createPlayer(
   nickname: string,
   tierScore: number,
   tierLabel: string,
-  position: Position
+  position: Position | null,
+  game: Game = "suddenattack"
 ): Promise<ActionResult<Player>> {
   if (!(await isAuthenticated())) {
     return { data: null, error: "로그인이 필요합니다." };
@@ -34,7 +36,7 @@ export async function createPlayer(
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("players")
-    .insert({ nickname, tier_score: tierScore, tier_label: tierLabel, position })
+    .insert({ nickname, tier_score: tierScore, tier_label: tierLabel, position, game })
     .select()
     .single();
 

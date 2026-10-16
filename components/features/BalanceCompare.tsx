@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Player } from "@/types";
-import { Position, getTierDisplay, getTierColor } from "@/lib/tiers";
+import { Position, getTierDisplay, getTierColor, Game } from "@/lib/tiers";
 
 type Props = {
   players: Player[];
@@ -11,6 +11,7 @@ type Props = {
   balance3: (string | null)[];
   teamCount: number;
   isAdmin: boolean;
+  game?: Game;
   onDropToBalance: (playerId: string, slot: 1 | 2 | 3) => void;
   onRemoveFromBalance: (playerId: string, slot: 1 | 2 | 3) => void;
   onAssignTeam: (playerId: string, teamNumber: number) => void | Promise<void>;
@@ -26,6 +27,7 @@ export default function BalanceCompare({
   balance3,
   teamCount,
   isAdmin,
+  game = "suddenattack",
   onDropToBalance,
   onRemoveFromBalance,
   onAssignTeam,
@@ -153,7 +155,7 @@ export default function BalanceCompare({
                           : "bg-gray-800 border-gray-600 text-gray-200 hover:border-gray-500"
                       } ${isAdmin ? "active:scale-95" : ""}`}
                     >
-                      <span className={`opacity-60 text-xs ${getTierColor(player.tier_label)}`}>{getTierDisplay(player.tier_label)}</span>
+                      <span className={`opacity-60 text-xs ${getTierColor(player.tier_label, game)}`}>{getTierDisplay(player.tier_label, game)}</span>
                       <span className="font-medium">{player.nickname}</span>
                       <span className="opacity-60 text-xs">{player.position}</span>
                     </button>

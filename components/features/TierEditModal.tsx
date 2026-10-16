@@ -2,19 +2,21 @@
 
 import { useState } from "react";
 import { Player } from "@/types";
-import { TIERS, POSITIONS, Position } from "@/lib/tiers";
+import { TIERS, getTiersByGame, POSITIONS, Position, Game } from "@/lib/tiers";
 import TierSelect from "@/components/ui/TierSelect";
 import { updatePlayerTier, updatePlayerPosition, deletePlayer } from "@/actions/players";
 import { createClient } from "@/lib/supabase/client";
 
 type Props = {
+  game: Game;
   players: Player[];
   onClose: () => void;
   onUpdated: () => void;
   defaultPlayer?: Player;
 };
 
-export default function TierEditModal({ players, onClose, onUpdated, defaultPlayer }: Props) {
+export default function TierEditModal({ game, players, onClose, onUpdated, defaultPlayer }: Props) {
+  const isPubg = game === "pubg";
   const [search, setSearch] = useState(defaultPlayer?.nickname ?? "");
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(defaultPlayer ?? null);
   const [newTierScore, setNewTierScore] = useState<number | null>(defaultPlayer?.tier_score ?? null);
@@ -33,7 +35,7 @@ export default function TierEditModal({ players, onClose, onUpdated, defaultPlay
     setSelectedPlayer(player);
     setNewTierScore(player.tier_score);
     setNewNickname(player.nickname);
-    setNewPosition(player.position);
+    setNewPosition(player.position ?? "R");
     setSearch(player.nickname);
   };
 
@@ -127,10 +129,12 @@ export default function TierEditModal({ players, onClose, onUpdated, defaultPlay
             <div>
               <label className="text-xs text-gray-400 mb-1 block">티어</label>
               <TierSelect
+                game={game}
                 value={newTierScore ?? selectedPlayer.tier_score}
                 onChange={setNewTierScore}
               />
             </div>
+            {!isPubg && (
             <div>
               <label className="text-xs text-gray-400 mb-1 block">포지션</label>
               <select
@@ -145,6 +149,7 @@ export default function TierEditModal({ players, onClose, onUpdated, defaultPlay
                 ))}
               </select>
             </div>
+            )}
             <button
               onClick={handleSave}
               disabled={loading}

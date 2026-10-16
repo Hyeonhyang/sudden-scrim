@@ -2,17 +2,21 @@
 
 import { useState } from "react";
 import { createPlayer } from "@/actions/players";
-import { TIERS, POSITIONS, Position } from "@/lib/tiers";
+import { getTiersByGame, POSITIONS, Position, Game } from "@/lib/tiers";
 import TierSelect from "@/components/ui/TierSelect";
 
 type Props = {
+  game: Game;
   onClose: () => void;
   onRegistered: () => void;
 };
 
-export default function PlayerRegistration({ onClose, onRegistered }: Props) {
+export default function PlayerRegistration({ game, onClose, onRegistered }: Props) {
+  const tiers = getTiersByGame(game);
+  const isPubg = game === "pubg";
+
   const [nickname, setNickname] = useState("");
-  const [tierScore, setTierScore] = useState(17); // 기본: 1티어
+  const [tierScore, setTierScore] = useState(tiers[Math.floor(tiers.length / 2)].score);
   const [position, setPosition] = useState<Position>("R");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -23,8 +27,14 @@ export default function PlayerRegistration({ onClose, onRegistered }: Props) {
     setLoading(true);
     setError("");
 
-    const tier = TIERS.find((t) => t.score === tierScore)!;
-    const result = await createPlayer(nickname.trim(), tierScore, tier.label, position);
+    const tier = tiers.find((t) => t.score === tierScore)!;
+    const result = await createPlayer(
+      nickname.trim(),
+      tierScore,
+      tier.label,
+      isPubg ? null : position,
+      game
+    );
 
     if (result.error) {
       setError(result.error);
@@ -40,7 +50,9 @@ export default function PlayerRegistration({ onClose, onRegistered }: Props) {
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-sm animate-fade-in">
-        <h2 className="text-lg font-bold mb-4">선수 등록</h2>
+        <h2 className="text-lg font-bold mb-4">
+          {isPubg ? "🎮 배그 선수 등록" : "선수 등록"}
+        </h2>
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <input
             type="text"
@@ -51,20 +63,23 @@ export default function PlayerRegistration({ onClose, onRegistered }: Props) {
             autoFocus
           />
           <TierSelect
+            game={game}
             value={tierScore}
             onChange={setTierScore}
           />
-          <select
-            value={position}
-            onChange={(e) => setPosition(e.target.value as Position)}
-            className="px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 text-white focus:outline-none focus:border-indigo-500"
-          >
-            {POSITIONS.map((pos) => (
-              <option key={pos} value={pos}>
-                {pos} - {pos === "S" ? "스나" : pos === "R" ? "라이플" : pos === "M" ? "멀티" : pos === "SM" ? "스나/멀티" : "라이플/멀티"}
-              </option>
-            ))}
-          </select>
+          {!isPubg && (
+            <select
+              value={position}
+              onChange={(e) => setPosition(e.target.value as Position)}
+              className="px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 text-white focus:outline-none focus:border-indigo-500"
+            >
+              {POSITIONS.map((pos) => (
+                <option key={pos} value={pos}>
+                  {pos} - {pos === "S" ? "스나" : pos === "R" ? "라이플" : pos === "M" ? "멀티" : pos === "SM" ? "스나/멀티" : "라이플/멀티"}
+                </option>
+              ))}
+            </select>
+          )}
           {error && <p className="text-red-400 text-sm">{error}</p>}
           <div className="flex gap-2">
             <button

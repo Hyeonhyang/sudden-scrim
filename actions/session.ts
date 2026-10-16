@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { isAuthenticated } from "@/lib/auth";
-import { Position } from "@/lib/tiers";
+import { Position, Game } from "@/lib/tiers";
 import { Session, SessionPlayer } from "@/types";
 
 type ActionResult<T = null> =
@@ -11,7 +11,8 @@ type ActionResult<T = null> =
 
 export async function createSession(
   name: string,
-  teamCount: number
+  teamCount: number,
+  game: Game = "suddenattack"
 ): Promise<ActionResult<Session>> {
   if (!(await isAuthenticated())) {
     return { data: null, error: "로그인이 필요합니다." };
@@ -20,7 +21,7 @@ export async function createSession(
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("sessions")
-    .insert({ name, team_count: teamCount })
+    .insert({ name, team_count: teamCount, game })
     .select()
     .single();
 
@@ -28,12 +29,13 @@ export async function createSession(
   return { data: data as Session, error: null };
 }
 
-export async function getActiveSession(): Promise<ActionResult<Session | null>> {
+export async function getActiveSession(game: Game = "suddenattack"): Promise<ActionResult<Session | null>> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("sessions")
     .select("*")
     .eq("status", "drafting")
+    .eq("game", game)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
