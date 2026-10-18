@@ -45,7 +45,8 @@ export default function TierEditModal({ game, players, onClose, onUpdated, defau
     setMessage("");
 
     const supabase = createClient();
-    const tier = TIERS.find((t) => t.score === newTierScore)!;
+    const tiers = getTiersByGame(game);
+    const tier = tiers.find((t) => t.score === newTierScore)!;
 
     // 닉네임 변경
     if (newNickname.trim() && newNickname.trim() !== selectedPlayer.nickname) {
